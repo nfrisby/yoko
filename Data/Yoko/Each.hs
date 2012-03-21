@@ -1,14 +1,31 @@
 {-# LANGUAGE KindSignatures, ConstraintKinds, MultiParamTypeClasses,
   Rank2Types, FlexibleInstances, UndecidableInstances, TypeOperators #-}
 
+{- |
+
+Module      :  Data.Yoko.Each
+Copyright   :  (c) The University of Kansas 2011
+License     :  BSD3
+
+Maintainer  :  nicolas.frisby@gmail.com
+Stability   :  experimental
+Portability :  see LANGUAGE pragmas (... GHC)
+
+Basic support for folding through type-level sums.
+
+-}
+
 module Data.Yoko.Each (Each, each) where
 
 import Data.Yoko.TypeBasics
 import Data.Yoko.Representation
 
 
-
+-- | The constraint @Each con sum@ corresponds to the constraing @forall dc in
+-- sum. con dc@.
 type Each = Each_
+
+-- | Fold through a type-level sum.
 each :: Each cxt sum => Proxy cxt -> (forall a. cxt a => a -> b) -> sum -> b
 each = each_
 

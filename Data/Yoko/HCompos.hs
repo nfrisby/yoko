@@ -4,12 +4,26 @@
 
 {-# OPTIONS_GHC -fcontext-stack=250 #-}
 
-module Data.Yoko.HCompos (Idiom, HCompos(..)) where
+{- |
+
+Module      :  Data.Yoko.HCompos
+Copyright   :  (c) The University of Kansas 2011
+License     :  BSD3
+
+Maintainer  :  nicolas.frisby@gmail.com
+Stability   :  experimental
+Portability :  see LANGUAGE pragmas (... GHC)
+
+The generic homomorphism or \"heterogenous compos\".
+
+See the paper \"A Pattern for Almost Homomorphic Functions\" at <http://www.ittc.ku.edu/~nfrisby/papers/yoko.pdf>, submitted to ICFP 2012.
+
+-}
+
+module Data.Yoko.HCompos (Idiom, HCompos(..), FindDCs) where
 
 import Data.Yoko.TypeBasics
 import Data.Yoko
-
-
 
 import Control.Applicative
 
@@ -23,8 +37,9 @@ instance HCompos cnv sum t => HCompos cnv (DCsOf a sum) t where
 
 
 
-
+-- | The applicative functor required by the conversion.
 type family Idiom cnv :: * -> *
+-- | The conversion @cnv@ can convert from @a@ to @t@.
 class Applicative (Idiom cnv) => HCompos cnv a t where
   hcompos :: cnv -> a -> Idiom cnv t
 
@@ -46,6 +61,8 @@ instance (Generic dc, Just (N dc') ~ FindDCs (Tag dc) (DCs t),
 
 
 
+-- | @FindDCs s sum@ returns a type-level @Maybe@. @Just dc@ is a fields type
+-- @dc@ where @'Tag' dc ~ s@.
 type family FindDCs s sum
 type instance FindDCs s (N dc) =
   If (Equal s (Tag dc)) (Just (N dc)) Nothing

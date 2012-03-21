@@ -1,7 +1,48 @@
 {-# LANGUAGE TypeOperators, ViewPatterns, TemplateHaskell, PatternGuards #-}
 
+{- |
+
+Module      :  Data.Yoko.TH
+Copyright   :  (c) The University of Kansas 2011
+License     :  BSD3
+
+Maintainer  :  nicolas.frisby@gmail.com
+Stability   :  experimental
+Portability :  see LANGUAGE pragmas (... GHC)
+
+This bundled Template Haskell derives all fields types and @yoko@ instances for
+users' data types.
+
+'yokoTH' is the prinicpal deriver, but it can be customized via 'yokoTH_with',
+which lets the user specify how to represent composite fields that include
+applications of type with higher-kinds than @*->*@.
+
+For instance, @yokoTH@ cannot handle @data T = C0 | C1 [(Int, T T)]@.
+
+The following invocation of @yokoTH_with@ does. @Par2@ is declared in
+"Data.Yoko.Representation", but @Bifunctor@ is not.
+
+@
+class Bifunctor f where
+  bifmap :: (a -> c) -> (b -> d) -> f a b -> f c d
+
+instance Bifunctor ((,,) a) where
+  bifmap f g ~(a, x, y) = (a, f x, g y)
+
+yokoTH_with (yokoDefaults {mappings = ((2, Mapping ''Par2 'Par2 'bifmap) :)}) ''T
+@
+
+As always, use @{- OPTIONS_GHC -ddump-splices -}@ to inspect the generated
+code.
+
+-}
+
 module Data.Yoko.TH
-  (yokoTH, yokoTH_with, yokoDefaults, YokoOptions(..), Mapping(..)) where
+  (-- * Derivers
+   yokoTH, yokoTH_with,
+   -- * Options
+   YokoOptions(..), Mapping(..), yokoDefaults
+  ) where
 
 import Type.Spine.Stage0 (Spine, spineType_, kTypeG)
 import Type.Serialize (serializeTypeAsHash_)
@@ -56,14 +97,23 @@ instance R.Name TargetKind where name = TargetKind
 
 
 
+-- | A 'Mapping' identifies the representation type, its constructor, and the
+-- associated mapping function. For example, 'Par1' is represented with
+-- @Mapping ''Par1 'Par1 'fmap@.
 data Mapping = Mapping
   {containerTypeName :: Name, containerCtor :: Name,
    methodName :: Name}
 
+-- | The default @yoko@ derivations can be customised.
 data YokoOptions = YokoOptions
-  {renamer :: (String -> String) -> (String -> String),
+  { -- | How fields type names are derived from constructor names. Defaults to
+    -- @(++ \"_\")@.
+   renamer :: (String -> String) -> (String -> String),
+    -- | How applications of higher-rank data types are represented. Defaults
+    -- to @[(1, 'Mapping' ''Par1 'Par1 'fmap)]@.
    mappings :: [(Int, Mapping)] -> [(Int, Mapping)]}
 
+-- | The default options. @yokoDefaults = YokoOptions id id@.
 yokoDefaults :: YokoOptions
 yokoDefaults = YokoOptions id id
 
@@ -80,9 +130,11 @@ generate = Writer.tell
 
 
 
+-- | Derive fields types and all @yoko@ instances for a given data type.
 yokoTH :: Name -> Q [Dec]
 yokoTH n = yokoTH_with yokoDefaults n
 
+-- | Customized derivation.
 yokoTH_with :: YokoOptions -> Name -> Q [Dec]
 yokoTH_with options n = runM $ yoko0 $ X :&
   Target := n :& Renamer := (mkName . renamer options (++ "_") . TH.nameBase)
