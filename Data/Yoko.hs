@@ -7,7 +7,8 @@ module Data.Yoko
    module Data.Yoko.Representation,
    module Data.Yoko.TypeSums,
    module Data.Yoko.View,
-   module Data.Yoko) where
+   module Data.Yoko,
+   module Data.Yoko.TH) where
 
 import Data.Yoko.TypeBasics
 import Data.Yoko.Representation
@@ -15,6 +16,8 @@ import Data.Yoko.View
 import Data.Yoko.TypeSums (Embed, Partition, (:-:))
 import qualified Data.Yoko.TypeSums as TypeSums
 import Data.Yoko.Each
+
+import Data.Yoko.TH
 
 import Control.Arrow (right, (+++))
 
