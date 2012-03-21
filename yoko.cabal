@@ -93,12 +93,12 @@ library
     records >= 0.1.1.6 && < 0.2
 
   build-depends:
-    th-sccs >= 0.0 && < 0.1,
+    th-sccs < 0.1,
     type-booleans < 0.2,
-    type-spine < 0.2,
+    type-spine >= 0.1.1 && < 0.2,
     tagged-th < 0.2,
     type-digits < 0.2,
-    type-cereal < 0.2,
+    type-cereal >= 0.1.1 && < 0.2,
     type-ord < 0.2,
     type-ord-spine-cereal < 0.2
 
