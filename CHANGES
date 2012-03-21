@@ -1,0 +1,17 @@
+0.2 -> 0.4
+===============
+
+* drastic simplifications when writing the ICFP submission
+
+* I'll eventually work those older features back in --- Though it is
+  *extremely* unlikely, I apologize if you were using them.
+
+0.1 -> 0.2
+===============
+
+* improved the treatment of automatically generating algebras
+* emphasizing DCOf over DCU
+* moved all of the documentation from README to http://code.google.com/p/yoko
+* still obsessively tweaking names throughout the library
+* improved the treatment of unique constructors
+* added SiblingOf and a corresponding superclass constraint to DT

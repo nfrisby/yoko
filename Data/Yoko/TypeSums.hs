@@ -1,0 +1,115 @@
+{-# LANGUAGE MultiParamTypeClasses, TypeFamilies, TypeOperators,
+  NoPolyKinds, DataKinds #-}
+
+{-# LANGUAGE FlexibleInstances, FlexibleContexts, UndecidableInstances,
+  ScopedTypeVariables, EmptyDataDecls #-}
+
+{-# OPTIONS_GHC -fcontext-stack=250 #-}
+
+module Data.Yoko.TypeSums (DistMaybePlus, (:-:),
+                           Embed, embed, inject,
+                           Partition, project, partition) where
+
+import Data.Yoko.TypeBasics
+import Data.Yoko.Representation
+
+import Control.Arrow (left)
+
+import Data.Yoko.TypeSumsAux (Partition_N(..))
+
+
+
+
+
+class Embed sub sup where embed_ :: sub -> sup
+
+embed :: Embed sub sup => sub -> sup
+embed = embed_
+
+inject :: Embed (N a) sum => a -> sum
+inject = embed . N
+
+
+
+class Partition sup subL subR where partition_ :: sup -> Either subL subR
+
+partition :: Partition sup sub (sup :-: sub) =>
+             sup -> Either sub (sup :-: sub)
+partition = partition_
+
+project :: Partition sum (N a) (sum :-: N a) => sum -> Either a (sum :-: N a)
+project = left unN . partition_
+
+
+
+
+
+data Here a
+data TurnLeft path
+data TurnRight path
+
+type family Locate a sum
+type instance Locate a (N x) = If (Equal x a) (Just (Here a)) Nothing
+type instance Locate a (l :+: r) =
+  MaybeMap TurnLeft (Locate a l) `MaybePlus1`
+  MaybeMap TurnRight (Locate a r)
+type instance Locate a Void = Nothing
+
+type Elem a sum = IsJust (Locate a sum)
+
+
+
+
+
+class InjectAt path a sum where injectAt :: Proxy path -> a -> sum
+instance InjectAt (Here a) a (N a) where injectAt _ = N
+instance InjectAt path a l => InjectAt (TurnLeft path) a (l :+: r) where
+  injectAt _ = L . injectAt (Proxy :: Proxy path)
+instance InjectAt path a r => InjectAt (TurnRight path) a (l :+: r) where
+  injectAt _ = R . injectAt (Proxy :: Proxy path)
+
+
+
+
+
+instance (Locate x sup ~ Just path, InjectAt path x sup) => Embed (N x) sup where
+  embed_ = injectAt (Proxy :: Proxy path) . unN
+instance (Embed l sup, Embed r sup) => Embed (l :+: r) sup where
+  embed_ = foldPlus embed embed
+
+
+
+
+
+infixl 6 :-:
+type family (:-:) sum sum2
+type instance (:-:) (N x) sum2 = If (Elem x sum2) Void (N x)
+type instance (:-:) (l :+: r) sum2 = Combine (l :-: sum2) (r :-: sum2)
+
+
+type family Combine sum sum2
+type instance Combine Void x = x
+type instance Combine (N x) Void = N x
+type instance Combine (N x) (N y) = N x :+: N y 
+type instance Combine (N x) (l :+: r) = N x :+: (l :+: r)
+type instance Combine (l :+: r) Void = l :+: r
+type instance Combine (l :+: r) (N y) = (l :+: r) :+: N y
+type instance Combine (ll :+: rl) (lr :+: rr) = (ll :+: rl) :+: (lr :+: rr)
+
+
+
+
+instance (Partition_N (Elem x subL) x subL subR
+         ) => Partition (N x) subL subR where
+  partition_ = partition_N (Proxy :: Proxy (Elem x subL))
+
+instance (Partition a subL subR, Partition b subL subR
+         ) => Partition (a :+: b) subL subR where
+  partition_ = foldPlus partition_ partition_
+
+
+
+instance Embed (N x) subR => Partition_N False x subL subR where
+  partition_N _ = Right . embed
+instance Embed (N x) subL => Partition_N True  x subL subR where
+  partition_N _ = Left  . embed
