@@ -79,6 +79,10 @@ cabal-version: >= 1.6
 extra-source-files: README, CHANGES, Examples/*.hs, Examples/LambdaLift/*.hs
 
 
+source-repository head
+  type:     git
+  location: git://github.com/nfrisby/yoko.git
+
 
 library
   build-depends: base >= 4 && < 5,
