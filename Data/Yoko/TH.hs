@@ -13,23 +13,41 @@ Portability :  see LANGUAGE pragmas (... GHC)
 This bundled Template Haskell derives all fields types and @yoko@ instances for
 users' data types.
 
-'yokoTH' is the prinicpal deriver, but it can be customized via 'yokoTH_with',
-which lets the user specify how to represent composite fields that include
-applications of type with higher-kinds than @*->*@.
+'yokoTH' is the prinicpal deriver, but it can be customized in two ways via
+'yokoTH_with'. First, the user can specify how to derive the names of fields
+types from the original constructor name -- the default is @(++ \"_\")@.
+Second, the user can specify how to represent composite fields that include
+applications of types with higher-kinds. This is done by providing a 'Mapping'.
 
-For instance, @yokoTH@ cannot handle @data T = C0 | C1 [(Int, T T)]@.
+Each 'Mapping' specifies a representation type, its constructor, and a
+structure-preserving mapping function. The default options handle applications
+of @*->*@ and @*->*->*@ types with the 'Par1' and 'Par2' types from
+"Data.Yoko.Representation" and uses the 'invmap' and 'invmap2' mapping
+functions from the @invariant@ package.
 
-The following invocation of @yokoTH_with@ does. @Par2@ is declared in
-"Data.Yoko.Representation", but @Bifunctor@ is not.
+For example, @yokoTH@ cannot handle @data T = C0 | C1 (T, T, T)@, since '(,,)'
+is applied at kind @*->*->*@. It can, however handle @data U = C0 | C1 (Int, U,
+U)@, since @(,,) Int@ is applied at kind @*->*->*@ -- the kind of the
+application is determined by the leftmost argument with a recursive
+occurrence. In this case, @yokoTH@ uses the default @Mapping ''Par2 'Par2
+'invmap2@.
+
+The following invocation of @yokoTH_with@ can handle @T@, since it provides an
+additional mapping to be used with 3-argument applications.
 
 @
-class Bifunctor f where
-  bifmap :: (a -> c) -> (b -> d) -> f a b -> f c d
+class Invariant3 f where
+  invmap3 :: (a -> x) -> (x -> a) ->
+             (b -> y) -> (y -> b) ->
+             (c -> z) -> (z -> c) ->
+             f a b c -> f x y z
 
-instance Bifunctor ((,,) a) where
-  bifmap f g ~(a, x, y) = (a, f x, g y)
+instance Invariant3 (,,) where
+  invmap3 f _ g _ h _ ~(x, y, z) = (f x, g y, h z)
 
-yokoTH_with (yokoDefaults {mappings = ((2, Mapping ''Par2 'Par2 'bifmap) :)}) ''T
+newtype Par3 f a b c = Par3 (f a b c)
+
+yokoTH_with (yokoDefaults {mappings = ((3, Mapping ''Par3 'Par3 'invmap3) :)}) ''T
 @
 
 As always, use @{- OPTIONS_GHC -ddump-splices -}@ to inspect the generated
@@ -57,6 +75,8 @@ import Language.Haskell.TH.Syntax as TH hiding (Range)
 import qualified Language.Haskell.TH.SCCs as SCCs
 
 import qualified Data.Yoko.TH.Internal as Int
+
+import Data.Functor.Invariant (invmap, invmap2)
 
 import qualified Control.Monad.Writer as Writer
 import qualified Control.Monad.Trans as Trans
@@ -99,7 +119,7 @@ instance R.Name TargetKind where name = TargetKind
 
 -- | A 'Mapping' identifies the representation type, its constructor, and the
 -- associated mapping function. For example, 'Par1' is represented with
--- @Mapping ''Par1 'Par1 'fmap@.
+-- @Mapping ''Par1 'Par1 'invmap@.
 data Mapping = Mapping
   {containerTypeName :: Name, containerCtor :: Name,
    methodName :: Name}
@@ -110,7 +130,7 @@ data YokoOptions = YokoOptions
     -- @(++ \"_\")@.
    renamer :: (String -> String) -> (String -> String),
     -- | How applications of higher-rank data types are represented. Defaults
-    -- to @[(1, 'Mapping' ''Par1 'Par1 'fmap)]@.
+    -- to @[(1, 'Mapping' ''Par1 'Par1 'invmap), (2, 'Mapping' ''Par2 'Par2 'invmap2)]@.
    mappings :: [(Int, Mapping)] -> [(Int, Mapping)]}
 
 -- | The default options. @yokoDefaults = YokoOptions id id@.
@@ -138,7 +158,8 @@ yokoTH n = yokoTH_with yokoDefaults n
 yokoTH_with :: YokoOptions -> Name -> Q [Dec]
 yokoTH_with options n = runM $ yoko0 $ X :&
   Target := n :& Renamer := (mkName . renamer options (++ "_") . TH.nameBase)
-         :& Mappings := mappings options [(1, Mapping ''Par1 'Par1 'fmap)]
+         :& Mappings := mappings options [(1, Mapping ''Par1 'Par1 'invmap),
+                                          (2, Mapping ''Par2 'Par2 'invmap2)]
 
 
 
@@ -244,8 +265,8 @@ fieldRO maps bg = w' where
           recs <- mapM w' recs
           let snoc (tyL, fROL) (tyR, fROR) =
                 (tyL `AppT` tyR, fROL `appRO` fROR)
-              appRO l r = FieldRO {repF = repF l `AppE` repF r,
-                                   objF = objF l `AppE` objF r}
+              appRO l r = FieldRO {repF = repF l `AppE` repF r `AppE` objF r,
+                                   objF = objF l `AppE` objF r `AppE` repF r}
               post fRO = FieldRO {repF = ConE ctor `compose` repF fRO,
                                   objF = objF fRO `compose` dtor}
           return $ Arrow.second post $ foldl snoc
