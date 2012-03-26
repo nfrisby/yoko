@@ -75,6 +75,7 @@ import Language.Haskell.TH.Syntax as TH hiding (Range)
 import qualified Language.Haskell.TH.SCCs as SCCs
 
 import qualified Data.Yoko.TH.Internal as Int
+import Data.Yoko.TH.Internal (tvbName, peelApp, peelAppAcc, expandSyn)
 
 import Data.Functor.Invariant (invmap, invmap2)
 
@@ -82,6 +83,7 @@ import qualified Control.Monad.Writer as Writer
 import qualified Control.Monad.Trans as Trans
 
 import qualified Control.Arrow as Arrow
+import Control.Monad ((<=<))
 
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -196,10 +198,6 @@ renameCon f (RecC n fields) = RecC (f n) fields
 renameCon f (InfixC fieldL n fieldR) = InfixC fieldL (f n) fieldR
 renameCon f (ForallC tvbs cxt c) = ForallC tvbs cxt $ renameCon f c
 
-tvbName :: TyVarBndr -> Name
-tvbName (PlainTV n) = n
-tvbName (KindedTV n _) = n
-
 tvbKind :: TyVarBndr -> Kind
 tvbKind (PlainTV _) = StarK
 tvbKind (KindedTV _ k) = k
@@ -231,17 +229,11 @@ halves as nil app each = w (length as) as where
     where lk = k `div` 2   ;   rk = k - lk
           (l, r) = List.splitAt lk as
 
-peelApp :: Type -> (Type, [Type])
-peelApp = peelAppAcc []
-
-peelAppAcc acc (AppT ty0 ty1) = peelAppAcc (ty1 : acc) ty0
-peelAppAcc acc ty             = (ty, acc)
-
 data FieldRO = FieldRO {repF :: Exp, objF :: Exp}
 
 fieldRO :: [(Int, Mapping)] -> Set Name -> Type -> Q (Type, FieldRO)
 fieldRO maps bg = w' where
-  w' = uncurry w . peelApp
+  w' = uncurry w <=< uncurry expandSyn . peelApp
 
   isRec n = Set.member n bg
 
