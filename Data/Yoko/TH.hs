@@ -83,7 +83,6 @@ import qualified Control.Monad.Writer as Writer
 import qualified Control.Monad.Trans as Trans
 
 import qualified Control.Arrow as Arrow
-import Control.Monad ((<=<))
 
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -233,7 +232,7 @@ data FieldRO = FieldRO {repF :: Exp, objF :: Exp}
 
 fieldRO :: [(Int, Mapping)] -> Set Name -> Type -> Q (Type, FieldRO)
 fieldRO maps bg = w' where
-  w' = uncurry w <=< uncurry expandSyn . peelApp
+  w' = uncurry w . peelApp
 
   isRec n = Set.member n bg
 
@@ -246,9 +245,13 @@ fieldRO maps bg = w' where
     AppT{}              -> Int.thFail $ "impossible: AppT is guarded by peelApp."
     SigT ty _           -> uncurry w $ peelAppAcc tys ty
     ForallT{}           -> Int.thFail $ "no support for ForallT."
-    ConT n
-      | isRec n -> if not (null recs) then Int.thFail "does not support nested recursion."
-                   else simple True ty tys
+    ConT n | isRec n -> do
+      rhs <- expandSyn ty tys
+      case rhs of
+        Just (ty, tys) -> w ty tys
+        Nothing ->
+          if not (null recs) then Int.thFail "no support for nested recursion."
+          else simple True ty tys
     _ 
       | not (null recs) -> case lookup (length recs) maps of
         Nothing -> Int.thFail $ "no case in the given YokoOptions for type constructors with " ++ show (length recs) ++ " arguments."

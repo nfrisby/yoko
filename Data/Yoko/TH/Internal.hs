@@ -3,6 +3,7 @@
 module Data.Yoko.TH.Internal where
 
 import Data.Maybe (fromMaybe)
+import Control.Monad (mplus)
 
 import Language.Haskell.TH
 
@@ -49,14 +50,18 @@ peelAppAcc acc ty             = (ty, acc)
 
 
 
-expandSyn :: Type -> [Type] -> Q (Type, [Type])
-expandSyn ty@(ConT n) tys = do
+expandSyn :: Type -> [Type] -> Q (Maybe (Type, [Type]))
+expandSyn (ConT n) tys = do
   i <- reify n
   case i of
     TyConI (TySynD _ (map tvbName -> formals) rhs) ->
-      uncurry expandSyn $ peelApp $ msubst (zip formals tys) rhs
-    _ -> return (ty, tys)
-expandSyn ty tys = return (ty, tys)
+      -- formals <= tys because type synonyms must be fully applied.
+      -- peelAppAcc handles both formals < tys and formals == tys.
+      let tytys = peelAppAcc (drop (length formals) tys) $
+                  msubst (zip formals tys) rhs
+      in (`mplus` Just tytys) `fmap` uncurry expandSyn tytys
+    _ -> return Nothing
+expandSyn _ _ = return Nothing
 
 
 
