@@ -1,5 +1,20 @@
 {-# LANGUAGE TypeFamilies, DataKinds, PolyKinds #-}
 
+{- |
+
+Module      :  Data.Yoko.MaybeKind
+Copyright   :  (c) The University of Kansas 2012
+License     :  BSD3
+
+Maintainer  :  nicolas.frisby@gmail.com
+Stability   :  experimental
+Portability :  see LANGUAGE pragmas (... GHC)
+
+Some interface functions for type-level @Maybe@ (and @Bool@s). These functions
+are probably ripe for the @promotion@ library of Eisenberg, Weirich, et alia?
+
+-}
+
 module Data.Yoko.MaybeKind
   (-- ** Type-level @Maybe@
    IsJust, MaybePlus1, MaybeMap, If

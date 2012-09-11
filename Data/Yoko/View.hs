@@ -1,11 +1,10 @@
 {-# LANGUAGE TypeFamilies, TypeOperators, FlexibleContexts,
-  MultiParamTypeClasses, FlexibleInstances, ConstraintKinds,
-  UndecidableInstances #-}
+  MultiParamTypeClasses, FlexibleInstances, UndecidableInstances #-}
 
 {- |
 
 Module      :  Data.Yoko.View
-Copyright   :  (c) The University of Kansas 2011
+Copyright   :  (c) The University of Kansas 2012
 License     :  BSD3
 
 Maintainer  :  nicolas.frisby@gmail.com

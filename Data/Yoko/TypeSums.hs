@@ -6,6 +6,20 @@
 
 {-# OPTIONS_GHC -fcontext-stack=250 #-}
 
+{- |
+
+Module      :  Data.Yoko.TypeSums
+Copyright   :  (c) The University of Kansas 2012
+License     :  BSD3
+
+Maintainer  :  nicolas.frisby@gmail.com
+Stability   :  experimental
+Portability :  see LANGUAGE pragmas (... GHC)
+
+This is the technical core of @yoko@'s cheap constructor subsets.
+
+-}
+
 module Data.Yoko.TypeSums (DistMaybePlus, (:-:),
                            Embed, embed, inject,
                            Partition, project, partition) where
@@ -15,7 +29,6 @@ import Data.Yoko.Representation
 
 import Control.Arrow (left)
 
-import Data.Yoko.TypeSumsAux (Partition_N(..))
 
 
 
@@ -90,7 +103,7 @@ type instance (:-:) (l :+: r) sum2 = Combine (l :-: sum2) (r :-: sum2)
 type family Combine sum sum2
 type instance Combine Void x = x
 type instance Combine (N x) Void = N x
-type instance Combine (N x) (N y) = N x :+: N y 
+type instance Combine (N x) (N y) = N x :+: N y
 type instance Combine (N x) (l :+: r) = N x :+: (l :+: r)
 type instance Combine (l :+: r) Void = l :+: r
 type instance Combine (l :+: r) (N y) = (l :+: r) :+: N y
@@ -98,6 +111,8 @@ type instance Combine (ll :+: rl) (lr :+: rr) = (ll :+: rl) :+: (lr :+: rr)
 
 
 
+class Partition_N (bn :: Bool) x subL subR where
+  partition_N :: Proxy bn -> N x -> Either subL subR
 
 instance (Partition_N (Elem x subL) x subL subR
          ) => Partition (N x) subL subR where

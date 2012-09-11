@@ -1,5 +1,19 @@
 {-# LANGUAGE ViewPatterns #-}
 
+{- |
+
+Module      :  Data.Yoko.TH.Internal
+Copyright   :  (c) The University of Kansas 2012
+License     :  BSD3
+
+Maintainer  :  nicolas.frisby@gmail.com
+Stability   :  experimental
+Portability :  see LANGUAGE pragmas (... GHC)
+
+Some bits and pieces for the Template Haskell deriver.
+
+-}
+
 module Data.Yoko.TH.Internal where
 
 import Data.Maybe (fromMaybe)

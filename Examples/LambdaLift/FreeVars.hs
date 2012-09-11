@@ -1,5 +1,19 @@
 {-# LANGUAGE TypeOperators, FlexibleContexts, UndecidableInstances #-}
 
+{- |
+
+Module      :  LambdaLift.FreeVars
+Copyright   :  (c) The University of Kansas 2012
+License     :  BSD3
+
+Maintainer  :  nicolas.frisby@gmail.com
+Stability   :  experimental
+Portability :  see LANGUAGE pragmas (... GHC)
+
+An example lambba lifter using @hcompos@.
+
+-}
+
 module LambdaLift.FreeVars where
 
 import LambdaLift.ULC

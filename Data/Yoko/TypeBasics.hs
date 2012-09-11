@@ -3,7 +3,7 @@
 {- |
 
 Module      :  Data.Yoko.TypeBasics
-Copyright   :  (c) The University of Kansas 2011
+Copyright   :  (c) The University of Kansas 2012
 License     :  BSD3
 
 Maintainer  :  nicolas.frisby@gmail.com

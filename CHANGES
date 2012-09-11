@@ -1,3 +1,14 @@
+0.4 -> 0.9
+===============
+
+* I integrated all of the changes made during writing up my dissertation --
+  mostly superficial/renamings, though I did realize that the DCsOf wrapper was
+  superfluous.
+
+* In particular, I renamed @exact_case@ to @precise_case@, which is
+  polyvariadic in the ad-hoc cases. This makes for code that very much
+  resembles a normal case expression.
+
 0.2 -> 0.4
 ===============
 

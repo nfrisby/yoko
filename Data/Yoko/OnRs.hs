@@ -1,6 +1,5 @@
 {-# LANGUAGE TypeFamilies, MultiParamTypeClasses, Rank2Types, TypeOperators,
-  FlexibleInstances, UndecidableInstances, ConstraintKinds,
-  ScopedTypeVariables #-}
+  FlexibleInstances, UndecidableInstances, ScopedTypeVariables #-}
 
 module OnRs (onRsRPV, OnRsRPV(..), OnRs, OnRs_Con(..)) where
 
