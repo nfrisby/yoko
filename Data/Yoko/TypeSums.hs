@@ -48,7 +48,7 @@ data Here a
 data TurnLeft path
 data TurnRight path
 
-type family Locate a sum
+type family Locate a sum :: Maybe *
 type instance Locate a (N x) = If (Equal x a) (Just (Here a)) Nothing
 type instance Locate a (l :+: r) =
   MaybeMap TurnLeft (Locate a l) `MaybePlus1`

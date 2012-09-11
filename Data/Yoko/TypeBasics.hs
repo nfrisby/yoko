@@ -17,10 +17,9 @@ Some type-level programming basics.
 module Data.Yoko.TypeBasics (
   Proxy(..), Equal, derive,
   -- ** Re-exports
-  module Data.Yoko.MaybeKind, module Type.Booleans, encode
+  module Data.Yoko.MaybeKind, encode
   ) where
 
-import Type.Booleans
 import Data.Yoko.MaybeKind
 
 import Type.Spine
@@ -44,5 +43,5 @@ type Equal a b = IsEQ (Compare a b)
 -- packages' 'Spine' and 'Serialize' type families, which support generic
 -- instances of 'Compare'.
 derive n = do
-  d <- spineType n
+  d <- spineType_d n
   (d ++) `fmap` serializeTypeAsHash n

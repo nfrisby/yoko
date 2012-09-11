@@ -33,7 +33,7 @@ instance HCompos Cnv ULC TLF where hcompos Cnv = ll
 
 
 ll :: ULC -> M TLF
-ll tm = exact_case (hcompos Cnv) tm $ llLam .|| llVar .|. llLet
+ll tm = precise_case (hcompos Cnv) tm $ llLam .|| llVar .|. llLet
 
 llLam lams@(Lam_ tyTop tmTop) = do
   -- get the body; count formals; determine captives

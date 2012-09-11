@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, KindSignatures #-}
+{-# LANGUAGE MultiParamTypeClasses, KindSignatures, DataKinds #-}
 
 module Data.Yoko.TypeSumsAux where
 
@@ -7,6 +7,5 @@ import Data.Yoko.Representation
 
 
 
--- this * is Bool, ideally
-class Partition_N (bn :: *) x subL subR where
+class Partition_N (bn :: Bool) x subL subR where
   partition_N :: Proxy bn -> N x -> Either subL subR

@@ -40,8 +40,8 @@ instance FreeVars ULC where
       Right x -> freeVars x
 
 -- through sums
-instance FreeVars sum => FreeVars (DCsOf t sum) where
-  freeVars = freeVars . unDCsOf
+--instance FreeVars sum => FreeVars (DCsOf t sum) where
+--  freeVars = freeVars . unDCsOf
 instance (FreeVars a, FreeVars b) => FreeVars (a :+: b) where
   freeVars = foldPlus freeVars freeVars
 instance (Generic a, FreeVars (Rep a)) => FreeVars (N a) where

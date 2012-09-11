@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators, ViewPatterns, TemplateHaskell, PatternGuards #-}
+{-# LANGUAGE TypeOperators, ViewPatterns, TemplateHaskell, PatternGuards, DataKinds #-}
 
 {- |
 
@@ -13,7 +13,7 @@ Portability :  see LANGUAGE pragmas (... GHC)
 This bundled Template Haskell derives all fields types and @yoko@ instances for
 users' data types.
 
-'yokoTH' is the prinicpal deriver, but it can be customized in two ways via
+'yokoTH' is the principal deriver, but it can be customized in two ways via
 'yokoTH_with'. First, the user can specify how to derive the names of fields
 types from the original constructor name -- the default is @(++ \"_\")@.
 Second, the user can specify how to represent composite fields that include
@@ -62,16 +62,16 @@ module Data.Yoko.TH
    YokoOptions(..), Mapping(..), yokoDefaults
   ) where
 
-import Type.Spine.Stage0 (Spine, spineType_, kTypeG)
-import Type.Serialize (serializeTypeAsHash_)
+import Type.Spine (Spine, spineType_d_)
+import Type.Serialize (serializeTypeAsHash)
 import qualified Type.Ord as Ord
 
 import Data.Yoko.TypeBasics (encode)
 import Data.Yoko.Representation
 import Data.Yoko.View
 
-import Language.Haskell.TH as TH hiding (Range)
-import Language.Haskell.TH.Syntax as TH hiding (Range)
+import Language.Haskell.TH as TH hiding (Codomain)
+import Language.Haskell.TH.Syntax as TH hiding (Codomain)
 import qualified Language.Haskell.TH.SCCs as SCCs
 
 import qualified Data.Yoko.TH.Internal as Int
@@ -79,8 +79,8 @@ import Data.Yoko.TH.Internal (tvbName, peelApp, peelAppAcc, expandSyn)
 
 import Data.Functor.Invariant (invmap, invmap2)
 
-import qualified Control.Monad.Writer as Writer
-import qualified Control.Monad.Trans as Trans
+import qualified Control.Monad.Trans.Writer as Writer
+import qualified Control.Monad.Trans.Class as Trans
 
 import qualified Control.Arrow as Arrow
 
@@ -174,8 +174,8 @@ yoko0 r@(convert -> X :& Target := n) = do
 
   -- get the kind of the target type; each fields type has the same kind
   cxt <- flip mapM tvbs $ \tvb -> liftQ $
-    EqualP (ConT ''Ord.EQ) `fmap` do
-      let tv = [t| Spine ($(kTypeG (tvbKind tvb)) $(return $ tvbType tvb)) |]
+    EqualP (PromotedT 'EQ) `fmap` do
+      let tv = [t| Spine $(return $ tvbType tvb) |]
       [t| Ord.Compare $tv $tv |]
 
   yoko1 $ r :&
@@ -198,7 +198,7 @@ renameCon f (InfixC fieldL n fieldR) = InfixC fieldL (f n) fieldR
 renameCon f (ForallC tvbs cxt c) = ForallC tvbs cxt $ renameCon f c
 
 tvbKind :: TyVarBndr -> Kind
-tvbKind (PlainTV _) = StarK
+tvbKind (PlainTV _) = StarT
 tvbKind (KindedTV _ k) = k
 
 tvbType :: TyVarBndr -> Type
@@ -252,7 +252,7 @@ fieldRO maps bg = w' where
         Nothing ->
           if not (null recs) then Int.thFail "no support for nested recursion."
           else simple True ty tys
-    _ 
+    _
       | not (null recs) -> case lookup (length recs) maps of
         Nothing -> Int.thFail $ "no case in the given YokoOptions for type constructors with " ++ show (length recs) ++ " arguments."
         Just (Mapping {containerTypeName = tyn, containerCtor = ctor,
@@ -298,10 +298,10 @@ yoko1 r@(convert -> X :&
 
     fields <- conFields con
 
-    -- declare the fields type and its Range/Tag/DC instances
+    -- declare the fields type and its Codomain/Tag/DC instances
     let yokoD = 
           [Int.dataType2Dec n' (Int.DataType tvbs (Right [renameCon rn con])),
-           TySynInstD ''Range [fd] ty,
+           TySynInstD ''Codomain [fd] ty,
            TySynInstD ''Tag   [fd] $ encode $ TH.nameBase n,
            InstanceD cxt (ConT ''DC `AppT` fd)
              [let (pat, exp) = pat_exp n' n $ length fields
@@ -337,8 +337,8 @@ yoko1 r@(convert -> X :&
                                foldl AppE (ConE n') $ objE conRO]]]
 
     -- integrate with type-spine and type-cereal
-    spineD <- spineType_ (mkG n') ks StarK
-    cerealD <- serializeTypeAsHash_ (mkG n') ks StarK
+    spineD <- spineType_d_ (mkG n') ks
+    cerealD <- serializeTypeAsHash (mkG n')
 
     return $ yokoD ++ spineD ++ cerealD ++ genD
        | con <- either (:[]) id cons ]) >>= generate . concat
@@ -373,6 +373,6 @@ yoko2 r@(convert -> X :&
 
   cases <- return $ flip map cases $ \(inj, (n, fds)) ->
     let (pat, exp) = pat_exp n (rn n) fds
-    in simpleClause [pat] $ postConE 'DCsOf inj `AppE` exp
+    in simpleClause [pat] $ inj `AppE` exp
   generate $ [TySynInstD ''DCs [ty] dcs,
               InstanceD cxt (ConT ''DT `AppT` ty) [FunD 'disband cases]]

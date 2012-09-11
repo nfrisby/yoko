@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies, TemplateHaskell, UndecidableInstances #-}
 
 {-# OPTIONS_GHC -ddump-splices #-}
 
@@ -13,7 +13,7 @@ data T a = T a
 data X = X
 
 
-concat `fmap` mapM derive [''T, ''X]
+concat `fmap` mapM yokoTH [''T, ''X, ''Maybe]
 
 
 

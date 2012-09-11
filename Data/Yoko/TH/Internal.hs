@@ -45,6 +45,7 @@ tvbName (KindedTV n _) = n
 peelApp :: Type -> (Type, [Type])
 peelApp = peelAppAcc []
 
+peelAppAcc :: [Type] -> Type -> (Type, [Type])
 peelAppAcc acc (AppT ty0 ty1) = peelAppAcc (ty1 : acc) ty0
 peelAppAcc acc ty             = (ty, acc)
 

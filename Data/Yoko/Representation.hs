@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeFamilies, TypeOperators, TemplateHaskell,
-  UndecidableInstances, EmptyDataDecls #-}
+  UndecidableInstances, EmptyDataDecls, DataKinds #-}
 
 {- |
 
@@ -18,17 +18,15 @@ The @yoko@ representation types.
 module Data.Yoko.Representation
   (-- * Representation
    -- ** Sums
-   Void(..), N(..), (:+:)(..), DCsOf(..),
+   Void(..), N(..), (:+:)(..),
    -- ** Products
    U(..), (:*:)(..),
    -- ** Fields
    Rec(..), Dep(..), Par1(..), Par2(..),
    -- ** Conversions to and from fields-of-products structure
    Rep, Generic(..),
-   -- ** Building disbanded data type consumers
-   (|||),
    -- ** Auxilliaries
-   unDCsOf, unN, foldN, mapN,
+   unN, foldN, mapN,
    foldPlus, mapPlus,
    foldTimes, mapTimes,
    unRec, mapRec, unDep, unPar1, unPar2,
@@ -114,7 +112,7 @@ foldTimes comb f g (a :*: b) = comb (f a) (g b)
 -- | We avoid empty sums with a type-level @Maybe@. @DistMaybePlus@ performs
 -- sum union on lifted sums, only introducing @:+:@ when both arguments are
 -- @Just@s.
-type family DistMaybePlus a b
+type family DistMaybePlus (a :: Maybe *) (b :: Maybe *) :: Maybe *
 type instance DistMaybePlus Nothing b = b
 type instance DistMaybePlus (Just a) Nothing = Just a
 type instance DistMaybePlus (Just a) (Just b) = Just (a :+: b)
@@ -131,23 +129,6 @@ type instance CountRs (Dep a) = Z
 type instance CountRs (Rec a) = S Z
 type instance CountRs U = Z
 type instance CountRs (a :*: b) = Add (CountRs a) (CountRs b)
-
-
-
-
-
--- | A disbanded data type is an application of @DCsOf t@ to a sum of fields
--- types all of which have @t@ as their range. The use of @DCsOf@'s first
--- parameter throughout the API (e.g. in '|||') supplants many ascriptions.
-newtype DCsOf t sum = DCsOf sum   ;   unDCsOf (DCsOf x) = x
-instance Functor (DCsOf t) where fmap f = DCsOf . f . unDCsOf
-
-infixl 6 |||
--- | Combines two functions that consume disbanded data types into a function
--- that consumes their union. All fields types must be from the same data type.
-(|||) :: (DCsOf t sumL -> a) -> (DCsOf t sumR -> a) ->
-         DCsOf t (sumL :+: sumR) -> a
-(|||) f g = foldPlus f g . mapPlus DCsOf DCsOf . unDCsOf
 
 
 

@@ -14,7 +14,7 @@ instance DeepSeq a => DeepSeq [a] where
 instance DeepSeq a => DeepSeq (N a) where rnf = rnf . unN
 instance (DeepSeq a, DeepSeq b) => DeepSeq (a :+: b) where
   rnf = foldPlus rnf rnf
-instance DeepSeq sum => DeepSeq (DCsOf a sum) where rnf = rnf . unDCsOf
+--instance DeepSeq sum => DeepSeq (DCsOf a sum) where rnf = rnf . unDCsOf
 instance (DeepSeq a, DeepSeq b) => DeepSeq (a :*: b) where
   rnf = foldTimes seq rnf rnf
 instance DeepSeq a => DeepSeq (Rec a) where rnf = rnf . unRec
