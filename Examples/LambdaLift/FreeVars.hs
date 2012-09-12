@@ -47,7 +47,7 @@ instance FreeVars ULC where
   freeVars = w where
     w tm = case partition $ disband tm of
       Left x -> ($ x) $
-        (\(Lam_ ty tm) -> bump 1 $ w tm) .||
+        (\(Lam_ _ty tm) -> bump 1 $ w tm) .||
         (\(Var_ i) -> IS.singleton i) .|.
         (\(Let_ ds tm) ->
           foldr (\(Decl _ tm) -> IS.union (w tm) . bump 1) (w tm) ds)

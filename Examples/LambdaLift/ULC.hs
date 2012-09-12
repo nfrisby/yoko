@@ -17,7 +17,6 @@ An example lambba lifter using @hcompos@.
 module LambdaLift.ULC where
 
 import Data.Yoko
-import Data.Yoko.TypeBasics (encode, derive_data)
 import LambdaLift.Common
 
 
@@ -29,6 +28,9 @@ data ULC = Lam Type ULC | Var Int
 data Decl = Decl Type ULC deriving Show
 
 
+concat `fmap` mapM yokoTH [''ULC, ''Decl]
+
+{-
 data Lam_ = Lam_ Type ULC
 data Var_ = Var_ Int
 data Let_ = Let_ [Decl] ULC
@@ -83,10 +85,10 @@ instance Generic Decl_ where
 type instance DCs ULC =
   (N Lam_ :+: N Var_) :+: (N Let_ :+: N App_)
 instance DT ULC where
-  disband (Lam ty tm)   = {-DCsOf . -}inject $ Lam_ ty tm
-  disband (Var i)       = {-DCsOf . -}inject $ Var_ i
-  disband (Let ds tm)   = {-DCsOf . -}inject $ Let_ ds tm
-  disband (App tm1 tm2) = {-DCsOf . -}inject $ App_ tm1 tm2
+  disband (Lam ty tm)   = inject $ Lam_ ty tm
+  disband (Var i)       = inject $ Var_ i
+  disband (Let ds tm)   = inject $ Let_ ds tm
+  disband (App tm1 tm2) = inject $ App_ tm1 tm2
 instance DC Lam_ where rejoin (Lam_ ty tm)   = Lam ty tm
 instance DC Var_ where rejoin (Var_ i)       = Var i
 instance DC Let_ where rejoin (Let_ ds tm)   = Let ds tm
@@ -94,5 +96,6 @@ instance DC App_ where rejoin (App_ tm1 tm2) = App tm1 tm2
 
 type instance DCs Decl = N Decl_
 instance DT Decl where
-  disband (Decl ty tm) = {-DCsOf . -}N $ Decl_ ty tm
+  disband (Decl ty tm) = N $ Decl_ ty tm
 instance DC Decl_ where rejoin (Decl_ ty tm) = Decl ty tm
+-}

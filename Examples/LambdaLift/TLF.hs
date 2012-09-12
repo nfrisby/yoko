@@ -16,7 +16,6 @@ An example lambba lifter using @hcompos@.
 
 module LambdaLift.TLF where
 
-import Data.Yoko.TypeBasics (encode, derive_data)
 import Data.Yoko
 
 import LambdaLift.Common
@@ -35,8 +34,9 @@ data Prog = Prog [FunDec] TLF deriving Show
 
 
 
+concat `fmap` mapM yokoTH [''TLF]
 
-
+{-
 data Top_ = Top_ Int [Occ]
 data Occ_ = Occ_ Occ
 data App_  = App_ TLF TLF
@@ -72,9 +72,10 @@ instance Generic App_ where
 
 type instance DCs TLF = (N Top_ :+: N Occ_) :+: N App_
 instance DT TLF where
-  disband (Top i os )   = {-DCsOf . -}inject $ Top_ i os
-  disband (Occ o)       = {-DCsOf . -}inject $ Occ_ o
-  disband (App tm1 tm2) = {-DCsOf . -}inject $ App_ tm1 tm2
+  disband (Top i os )   = inject $ Top_ i os
+  disband (Occ o)       = inject $ Occ_ o
+  disband (App tm1 tm2) = inject $ App_ tm1 tm2
 instance DC Top_ where rejoin (Top_ i os)    = Top i os
 instance DC Occ_ where rejoin (Occ_  o)      = Occ o
 instance DC App_ where rejoin (App_ tm1 tm2) = App tm1 tm2
+-}

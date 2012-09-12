@@ -58,9 +58,16 @@ instance (Applicative i, a ~ x, b ~ y) => Convert (a -> i b) x y where convert =
 
 
 
+data FoundDC star = NoCorrespondingConstructorFor_In_ star star | Match star
+
+type family WithMessage (dcA :: *) (b :: *) (dcB :: Maybe *) :: FoundDC *
+type instance WithMessage dcA b (Just x) = Match x
+type instance WithMessage dcA b Nothing  = NoCorrespondingConstructorFor_In_ dcA b
+
+
 -- | @FindDCs dcA dcBs@ returns a type-level @Maybe@. @Just dcB@ is a fields
 -- type @dcB@ where @'Tag' dcA ~ dcB@.
-type family FindDCs (s :: Digit) sum :: Maybe *
+type family FindDCs (s :: Digit) (dcBs :: *) :: Maybe *
 type instance FindDCs s (N dc) =
   If   (Equal s (Tag dc))   (Just dc)   Nothing
 type instance FindDCs s (a :+: b) = DistMaybePlus (FindDCs s a) (FindDCs s b)
@@ -74,14 +81,16 @@ instance (HCompos cnv a t, HCompos cnv b t
   hcompos cnv = foldPlus (hcompos cnv) (hcompos cnv)
 
 -- NB only works if there's exactly one matching constructor
-instance (Generic dc, Just dc' ~ FindDCs (Tag dc) (DCs t),
-          MapRs cnv dc dc' (Rep dc) (Rep dc'),
-          DC dc', Codomain dc' ~ t, DT t
-         ) => HCompos cnv (N dc) t where
+instance (Generic dcA, Match dcB ~ WithMessage dcA b (FindDCs (Tag dcA) (DCs b)),
+          MapRs cnv (ResultsInIncompatibleFields dcA dcB) dcA dcB (Rep dcA) (Rep dcB),
+          DC dcB, Codomain dcB ~ b, DT b
+         ) => HCompos cnv (N dcA) b where
   hcompos cnv =
-    foldN $ liftA (rejoin . (id :: dc' -> dc') . obj) . mapRs cnv p1 p2 . rep
-    where p1 :: Proxy dc; p1 = Proxy; p2 :: Proxy dc'; p2 = Proxy
+    foldN $ liftA (rejoin . (id :: dcB -> dcB) . obj) . mapRs cnv msgp p1 p2 . rep
+    where p1 :: Proxy dcA; p1 = Proxy; p2 :: Proxy dcB; p2 = Proxy
+          msgp = ResultsInIncompatibleFields :: ResultsInIncompatibleFields dcA dcB
 
+data ResultsInIncompatibleFields (dcA :: *) (dcB :: *) = ResultsInIncompatibleFields
 
 
 
@@ -91,25 +100,25 @@ instance (Generic dc, Just dc' ~ FindDCs (Tag dc) (DCs t),
 
 -- | Same as @compos@ semantics, but with a generalized type and just for
 -- converting between product representations.
-class Applicative (Idiom cnv) => MapRs cnv dc dc' prod prod' where
-  mapRs :: cnv -> Proxy dc -> Proxy dc' -> prod -> Idiom cnv prod'
+class Applicative (Idiom cnv) => MapRs cnv msg dc dc' prod prod' where
+  mapRs :: cnv -> msg -> Proxy dc -> Proxy dc' -> prod -> Idiom cnv prod'
 
-instance Convert cnv a b => MapRs cnv dc dc' (Rec a) (Rec b) where
-  mapRs cnv _ _ (Rec x) = Rec <$> convert cnv x
+instance Convert cnv a b => MapRs cnv msg dc dc' (Rec a) (Rec b) where
+  mapRs cnv _ _ _ (Rec x) = Rec <$> convert cnv x
 
-instance Applicative (Idiom cnv) => MapRs cnv dc dc' (Dep a) (Dep a) where
-  mapRs _ _ _ = pure
-instance Applicative (Idiom cnv) => MapRs cnv dc dc' U       U       where
-  mapRs _ _ _ = pure
+instance Applicative (Idiom cnv) => MapRs cnv msg dc dc' (Dep a) (Dep a) where
+  mapRs _ _ _ _ = pure
+instance Applicative (Idiom cnv) => MapRs cnv msg dc dc' U       U       where
+  mapRs _ _ _ _ = pure
 
-instance (MapRs cnv dc dc' a a', MapRs cnv dc dc' b b'
-         ) => MapRs cnv dc dc' (a :*: b) (a' :*: b') where
-  mapRs cnv p1 p2 (a :*: b) = (:*:) <$> mapRs cnv p1 p2 a <*> mapRs cnv p1 p2 b
+instance (MapRs cnv msg dc dc' a a', MapRs cnv msg dc dc' b b'
+         ) => MapRs cnv msg dc dc' (a :*: b) (a' :*: b') where
+  mapRs cnv msgp p1 p2 (a :*: b) = (:*:) <$> mapRs cnv msgp p1 p2 a <*> mapRs cnv msgp p1 p2 b
 
-instance (Traversable f, MapRs cnv dc dc' a a'
-         ) => MapRs cnv dc dc' (Par1 f a) (Par1 f a') where
-  mapRs cnv p1 p2 (Par1 x) = Par1 <$> traverse (mapRs cnv p1 p2) x
+instance (Traversable f, MapRs cnv msg dc dc' a a'
+         ) => MapRs cnv msg dc dc' (Par1 f a) (Par1 f a') where
+  mapRs cnv msgp p1 p2 (Par1 x) = Par1 <$> traverse (mapRs cnv msgp p1 p2) x
 
-instance (Bitraversable f, MapRs cnv dc dc' a a', MapRs cnv dc dc' b b'
-         ) => MapRs cnv dc dc' (Par2 f a b) (Par2 f a' b') where
-  mapRs cnv p1 p2 (Par2 x) = Par2 <$> bitraverse (mapRs cnv p1 p2) (mapRs cnv p1 p2) x
+instance (Bitraversable f, MapRs cnv msg dc dc' a a', MapRs cnv msg dc dc' b b'
+         ) => MapRs cnv msg dc dc' (Par2 f a b) (Par2 f a' b') where
+  mapRs cnv msgp p1 p2 (Par2 x) = Par2 <$> bitraverse (mapRs cnv msgp p1 p2) (mapRs cnv msgp p1 p2) x
