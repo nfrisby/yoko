@@ -22,7 +22,7 @@ description:
   @
   .
   This type can of course be understood as a sum of the individual
-  /constructor types/.
+  /fields types/.
   .
   @
     data John   = John   ...
@@ -119,8 +119,3 @@ library
     Data.Yoko.Representation,
     Data.Yoko.TypeSums,
     Data.Yoko.TH.Internal
-
-    -- under development
---    Data.Yoko.Fold,
---    Data.Yoko.Map,
---    Data.Yoko.OnRs
