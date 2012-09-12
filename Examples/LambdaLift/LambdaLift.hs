@@ -55,23 +55,26 @@ llLam lams@(Lam_ tyTop tmTop) = do
         peel (acc, ty') (Lam ty tm) = peel (ty' : acc, ty) tm
         peel acc tm = (acc, tm)
   let nLocals = 1 + length tys -- NB "1 +" is for ty
-  let captives = freeVars $ rejoin lams
-      captives' = IS.toAscList captives
-      captives'' = reverse captives'
+  let captives = IS.toAscList $ freeVars $ rejoin lams
+      captives' = reverse captives
 
   (rho, rn) <- ask
 
   -- generate a top-level function from the body
-  do let m = IM.fromDistinctAscList $ zip captives' [0..]
+  do let m = IM.fromDistinctAscList $ zip captives [0..]
      tlf <- ignoreEmissions $
             local (const (ty : tys ++ rho, (nLocals, m))) $ ll ulc
-     emit (map (rho !!) captives'', reverse tys, ty, tlf)
+     emit (map (rho !!) $ captives', reverse tys, ty, tlf)
 
   -- replace lambdas with an invocation of tlf
   sh <- intermediates
 
-  return $ Top (sh - 1) $ map (lookupRN rn) $ captives''
+  return $ Top sh $ map (lookupRN rn) $ captives'
+
+-- just look up a variables new location (ie now from new closure's environment or parameters)
 llVar (Var_ i) = ask >>= \(_, rn) -> return $ Occ $ lookupRN rn i
+
+-- also simultaneously elaborate lets
 llLet (Let_ ds tm) = ll $ foldr (\(Decl ty tm) x -> A.App (Lam ty tm) x) tm ds
 
 
@@ -105,49 +108,14 @@ ex3' = lambdaLift [] ex3
 ex4 = Lam (TyFun TyInt TyInt) (Var 0) @@ Lam TyInt (Var 0)
 ex4' = lambdaLift [] ex4
 
+-- note, ill-typed, but the types don't really matter as long as the LL
+-- preserves them
 ex5 = Lam (TyFun (TyFun TyInt TyInt) (TyFun TyInt TyInt)) (Var 0) @@
       Lam (TyFun TyInt TyInt)
           (Lam TyUnit (Var 1) @@ Var 1)
 ex5' = lambdaLift [TyUnit] ex5
 
--- TODO can I make the Tops use scoped instead of global indices?
 
-{-
-ex0' ==
-Prog [([],[],TyInt,Var 0)
-     ] (Top 0 [])
-
-ex1' ==
-Prog [([],[TyFun TyInt (TyFun TyInt TyInt),TyFun TyInt TyInt],TyInt,
-         App (App (Var 2) (Var 0)) (App (Var 1) (Var 0))),
-      ([],[TyInt],TyInt,Var 0),
-      ([TyFun TyInt TyInt,TyInt],[],TyUnit,App (Var ^1) (Var ^0))
-     ] (App (App (Top 0 []) (Top 1 [])) (Top 2 [1,0]))
-
-ex2' ==
-Prog [([TyFun TyInt TyInt],[],TyInt,App (Var ^0) (Var 0)),
-      ([],[TyFun (TyFun TyInt TyInt) TyUnit],TyFun TyInt TyInt,
-         App (Var 1) (Top 0 [0]))
-     ] (Top 1 [])
-
-ex3' ==
-Prog [([TyUnit],[],TyInt,Var ^0),
-      ([TyUnit],[],TyUnit,App (Var ^0) (Top 0 [0])),
-      ([],[TyUnit,TyUnit],TyUnit,App (Var 1) (Top 1 [2]))
-     ] (Top 2 [])
-
-ex4' ==
-Prog [([],[],TyFun TyInt TyInt,Var 0),
-      ([],[],TyInt,Var 0)
-     ] (App (Top 0 []) (Top 1 []))
-
-ex5' ==
-Prog [([],[],TyFun (TyFun TyInt TyInt) (TyFun TyInt TyInt),Var 0),
-      ([TyFun TyInt TyInt],[],TyUnit,Var ^0),
-      ([TyUnit],[],TyFun TyInt TyInt,App (Top 1 [0]) (Var ^0))
-     ] (App (Top 0 []) (Top 2 [0]))
-
--}
 
 instance DeepSeq Type where rnf = (`seq` ())
 instance DeepSeq Occ  where
@@ -156,4 +124,10 @@ instance DeepSeq Occ  where
 instance DeepSeq Prog where rnf (Prog decs tm) = rnf decs `seq` rnf tm
 instance DeepSeq TLF  where rnf = rnf . reps . disband
 
+
+
+
+-- this should evaluate without an exception if things are working; NB doesn't
+-- actually test correctness -- currently asking you to do that by
+-- investigating the value of each lambda-lifted term
 all_exs = rnf [ex0', ex1', ex2', ex3', ex4', ex5']
