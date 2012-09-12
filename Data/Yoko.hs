@@ -16,9 +16,9 @@ programming library.
 
 The "Data.Yoko.HCompos" module defines the generic homomorphism; see the paper
 \"A Pattern for Almost Homomorphic Functions\" at
-<http://www.ittc.ku.edu/~nfrisby/papers/frisby-wgp-2012.pdf>, published at the
+<http://www.ittc.ku.edu/~nfrisby/frisby-wgp-2012.pdf>, published at the
 Workshop on Generic Programming 2012. Much more details in my dissertation:
-<http://www.ittc.ku.edu/~nfrisby/papers/frisby-dissertation.pdf>.
+<http://www.ittc.ku.edu/~nfrisby/frisby-dissertation.pdf>.
 
 @dc@ type variables abstract over /fields types/.
 

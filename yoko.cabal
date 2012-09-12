@@ -3,7 +3,10 @@ version: 0.9
 synopsis: Generic Programming with Disbanded Data Types
 
 description:
-  Based off of the paper \"A Pattern for Almost Homomorphic Functions\" at <http://www.ittc.ku.edu/~nfrisby/papers/yoko.pdf>, submitted to ICFP 2012.
+  Based off of the paper \"A Pattern for Almost Homomorphic Functions\"
+  at <http://www.ittc.ku.edu/~nfrisby/frisby-wgp-2012.pdf>, presented at the
+  Workshop on Generic Programming 2012. Also, my
+  dissertation <http://www.ittc.ku.edu/~nfrisby/frisby-dissertation.pdf>
   .
   @yoko@ views a nominal datatype as a /band/ of constructors, each
   a nominal type in its own right. Such datatypes can be disbanded via the
@@ -33,10 +36,11 @@ description:
   and sibling constructors.
   .
   As a generic programming library, @yoko@ extends @instant-generics@ with
-  support for constructor-centric generic programming. The @Examples/LambdaLift/@
-  file distributed with the @yoko@ source demonstrates defining a
-  lambda-lifting conversion between the two types @ULC@, which has lambdas,
-  and @Prog@, which has top-level function declarations instead.
+  support for constructor-centric generic programming. The
+  @Examples\/LambdaLift\/LambdaLift.hs@ file distributed with the @yoko@ source
+  demonstrates defining a lambda-lifting conversion between the two types
+  @ULC@, which has lambdas, and @Prog@, which has top-level function
+  declarations instead.
   .
   @
     data ULC = Lam Type ULC | Var Int | Let [Decl] ULC | App ULC ULC
@@ -59,8 +63,12 @@ description:
   work for any new @ULC@ constructors (e.g. syntax for tuples or mutable
   references) as long as constructors with the same names and analogous fields
   were added to @TLF@ and the semantics of those constructors doesn't involve
-  binding. This default behavior of the lambda-lifter is specified in about ten
-  lines of user code.
+  binding. This default /generic/ behavior of the lambda-lifter is specified in
+  about ten lines of user code.
+  .
+  The non-generic code is much more complicated. This is intentional: I wanted
+  to show that sometimes shoehorning an algorithm into the requisite type (/ie/
+  @a -> m a'@) can be difficult and require subtleties like backwards state.
   .
   Existing generic libraries don't use constructor names to the degree that
   @yoko@ does, and so cannot accomodate generic /conversions/ as well.

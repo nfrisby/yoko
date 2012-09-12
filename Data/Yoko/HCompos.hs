@@ -16,7 +16,7 @@ Portability :  see LANGUAGE pragmas (... GHC)
 
 The generic homomorphism or \"heterogenous compos\".
 
-See the paper \"A Pattern for Almost Homomorphic Functions\" at <http://www.ittc.ku.edu/~nfrisby/papers/yoko.pdf>, submitted to ICFP 2012.
+See the paper \"A Pattern for Almost Homomorphic Functions\" at <http://www.ittc.ku.edu/~nfrisby/frisby-2012-wgp.pdf>, presented at the Workshop on Generic Programming 2012.
 
 -}
 

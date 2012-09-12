@@ -13,6 +13,16 @@ Portability :  see LANGUAGE pragmas (... GHC)
 Using some McBride \"Faking It\" style trickery to make @precise_case@
 polyvariadic in the ad-hoc cases.
 
+E.g.
+
+> precise_case x (\(C_ a b) -> special_case a b) (Default $ \x -> generic_function x)
+
+and
+
+> precise_case x (\(C_ a b) -> special_case a b) (\(D_ x) -> special_case2 x) (Default $ \x -> generic_function x)
+
+both work.
+
 -}
 
 module Data.Yoko.SmartPreciseCase where
