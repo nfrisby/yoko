@@ -134,4 +134,4 @@ type instance CountRs (a :*: b) = Add (CountRs a) (CountRs b)
 
 
 
-concat `fmap` mapM derive [''Dep, ''Rec, ''U, ''(:*:), ''N, ''(:+:)]
+concat `fmap` mapM derive_data [''Dep, ''Rec, ''U, ''(:*:), ''N, ''(:+:)]

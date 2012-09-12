@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeFamilies, TypeOperators, FlexibleContexts,
-  MultiParamTypeClasses, FlexibleInstances, UndecidableInstances #-}
+  MultiParamTypeClasses, FlexibleInstances, UndecidableInstances, DataKinds #-}
 
 {- |
 
@@ -27,12 +27,13 @@ import Data.Yoko.Representation
 import Data.Yoko.TypeSums (Embed, Partition, (:-:))
 import Data.Yoko.Each
 
+import Type.Digits (Digit)
 
 
 
 -- | @Tag@ returns a simulated type-level string that is the name of the
 -- constructor that the @dc@ fields type represents.
-type family Tag dc
+type family Tag dc :: Digit
 
 -- | @Codomain@ is the data type that contains the constructor that the fields
 -- type @dc@ represents.  It can also be applied to sums of fields types, in

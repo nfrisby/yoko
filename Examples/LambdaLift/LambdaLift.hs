@@ -42,12 +42,12 @@ lambdaLift e x = Prog ds tm where
 
 data Cnv = Cnv
 type instance Idiom Cnv = M
-instance HCompos Cnv ULC TLF where hcompos Cnv = ll
+instance Convert Cnv ULC TLF where convert Cnv = ll
 
 
 
 ll :: ULC -> M TLF
-ll tm = precise_case (hcompos Cnv) tm $ llLam .|| llVar .|. llLet
+ll tm = precise_case tm llLam llVar llLet (Default $ hcompos Cnv)
 
 llLam lams@(Lam_ tyTop tmTop) = do
   -- get the body; count formals; determine captives

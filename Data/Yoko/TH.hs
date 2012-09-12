@@ -63,7 +63,7 @@ module Data.Yoko.TH
   ) where
 
 import Type.Spine (Spine, spineType_d_)
-import Type.Serialize (serializeTypeAsHash)
+import Type.Serialize (serializeTypeAsHash_data)
 import qualified Type.Ord as Ord
 
 import Data.Yoko.TypeBasics (encode)
@@ -79,8 +79,8 @@ import Data.Yoko.TH.Internal (tvbName, peelApp, peelAppAcc, expandSyn)
 
 import Data.Functor.Invariant (invmap, invmap2)
 
-import qualified Control.Monad.Trans.Writer as Writer
-import qualified Control.Monad.Trans.Class as Trans
+import qualified Control.Monad.Writer as Writer
+import qualified Control.Monad.Trans as Trans
 
 import qualified Control.Arrow as Arrow
 
@@ -338,7 +338,7 @@ yoko1 r@(convert -> X :&
 
     -- integrate with type-spine and type-cereal
     spineD <- spineType_d_ (mkG n') ks
-    cerealD <- serializeTypeAsHash (mkG n')
+    cerealD <- serializeTypeAsHash_data (mkG n')
 
     return $ yokoD ++ spineD ++ cerealD ++ genD
        | con <- either (:[]) id cons ]) >>= generate . concat

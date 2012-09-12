@@ -16,7 +16,7 @@ An example lambba lifter using @hcompos@.
 
 module LambdaLift.TLF where
 
-import Data.Yoko.TypeBasics (encode, derive)
+import Data.Yoko.TypeBasics (encode, derive_data)
 import Data.Yoko
 
 import LambdaLift.Common
@@ -51,7 +51,7 @@ type instance Tag Top_ = $(return $ encode "Top")
 type instance Tag Occ_ = $(return $ encode "Occ")
 type instance Tag App_  = $(return $ encode "App")
 
-concat `fmap` mapM derive [''TLF, ''Top_, ''Occ_, ''App_]
+concat `fmap` mapM derive_data [''TLF, ''Top_, ''Occ_, ''App_]
 
 
 

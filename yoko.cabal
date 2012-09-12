@@ -94,10 +94,14 @@ library
   build-depends: kinds >= 0.0.1.5, type-functions >= 0.2.0.3, records >= 0.1.1.6
 
   build-depends:
-    type-spine >= 0.2, type-cereal >= 0.2, type-ord, type-ord-spine-cereal
+    type-spine >= 0.2, type-digits >= 0.2, type-cereal >= 0.2, type-ord >= 0.2, type-ord-spine-cereal >= 0.2
 
   exposed-modules:
-    Data.Yoko, Data.Yoko.HCompos, Data.Yoko.TH
+    Data.Yoko,
+
+    Data.Yoko.SmartPreciseCase,
+
+    Data.YokoRaw, Data.Yoko.HCompos, Data.Yoko.TH,
 
     Data.Yoko.TypeBasics, Data.Yoko.Each
 
@@ -106,7 +110,6 @@ library
     Data.Yoko.MaybeKind,
     Data.Yoko.Representation,
     Data.Yoko.TypeSums,
-    Data.Yoko.TypeSumsAux,
     Data.Yoko.TH.Internal
 
     -- under development

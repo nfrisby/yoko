@@ -17,7 +17,7 @@ An example lambba lifter using @hcompos@.
 module LambdaLift.ULC where
 
 import Data.Yoko
-import Data.Yoko.TypeBasics (encode, derive)
+import Data.Yoko.TypeBasics (encode, derive_data)
 import LambdaLift.Common
 
 
@@ -52,7 +52,7 @@ type instance Tag App_ = $(return $ encode "App")
 
 type instance Tag Decl_ = $(return $ encode "Decl")
 
-concat `fmap` mapM derive [''ULC, ''Decl, ''Lam_, ''Var_, ''Let_, ''App_, ''Decl_]
+concat `fmap` mapM derive_data [''ULC, ''Decl, ''Lam_, ''Var_, ''Let_, ''App_, ''Decl_]
 
 
 
