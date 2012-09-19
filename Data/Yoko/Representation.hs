@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeFamilies, TypeOperators, TemplateHaskell,
-  UndecidableInstances, EmptyDataDecls, DataKinds #-}
+  UndecidableInstances, EmptyDataDecls, DataKinds, PolyKinds #-}
 
 {- |
 
@@ -20,16 +20,20 @@ module Data.Yoko.Representation
    -- ** Sums
    Void(..), N(..), (:+:)(..),
    -- ** Products
-   U(..), (:*:)(..),
+   C(..), U(..), (:*:)(..),
    -- ** Fields
-   Rec(..), Dep(..), Par1(..), Par2(..),
+   Rec0(..), Rec1(..), Rec2(..),
+   Dep(..), Par1(..), Par0(..), (:@:)(..), (:@@:)(..),
    -- ** Conversions to and from fields-of-products structure
-   Rep, Generic(..),
+   Rep, Generic0(..), Generic1(..), Generic2(..),
    -- ** Auxilliaries
    unN, foldN, mapN,
    foldPlus, mapPlus,
    foldTimes, mapTimes,
-   unRec, mapRec, unDep, unPar1, unPar2,
+   unDep,
+   unRec0, mapRec0,
+   unRec1, mapRec1,
+   unRec2, mapRec2,
    DistMaybePlus
    ) where
 
@@ -37,61 +41,80 @@ import Data.Yoko.TypeBasics
 
 
 
+
+-- | Wrapper around productus
+newtype C (dc :: * -> * -> *) r (p1 :: *) (p0 :: *) = C (r p1 p0)
+
 -- | The empty product.
-data U = U
+data U (p1 :: *) (p0 :: *) = U
 
 infixr 6 :*:
 -- | Product union.
-data a :*: b = a :*: b
+data (:*:) a b (p1 :: *) (p0 :: *) = a p1 p0 :*: b p1 p0
 
 -- | The empty sum. Used as an error type instead of a represention type, since
 -- data types with no constructors are uninteresting from a generic programming
 -- perspective -- there's just not much to be done generically.
-data Void
+data Void t (p1 :: *) (p0 :: *)
 
 -- | The singleton sum.
-newtype N a = N a
+newtype N dc (p1 :: *) (p0 :: *) = N (dc p1 p0)
 
 infixl 6 :+:
 -- | Sum union.
-data a :+: b = L a | R b deriving (Eq, Show, Ord, Read)
+data (:+:) a b (p1 :: *) (p0 :: *) = L (a p1 p0) | R (b p1 p0) deriving (Eq, Show, Ord, Read)
 
 
--- | Representation of unary type application. @f@ is a genuine @*->*@ type,
--- not a representation. @a@ is a representation.
-newtype Par1 f a = Par1 (f a)
 
--- | Representation of binary type application. @f@ is a genuine @*->*->*@
--- type, not a representation. @a@ and @b@ are representations.
-newtype Par2 f a b = Par2 (f a b)
+-- | An occurrence of the 1st parameter.
+newtype Par1 (p1 :: *) (p0 :: *) = Par1 p1
+
+-- | An occurrence of the zeroth parameter.
+newtype Par0 (p1 :: *) (p0 :: *) = Par0 p0
 
 
--- | A non-recursive occurrence.
-newtype Dep a = Dep a
+
+-- | A recursive @*@ occurrence.
+newtype Rec0 (lbl :: Nat) a (p1 :: *) (p0 :: *) = Rec0 a
+-- | A non-recursive @*@ occurrence.
+newtype Dep (a :: *) (p1 :: *) (p0 :: *) = Dep a
 
 -- | A recursive occurrence.
-newtype Rec a = Rec a
+newtype Rec1 (lbl :: Nat) (t :: * -> *) a (p1 :: *) (p0 :: *) = Rec1 (t (a p1 p0))
+-- | A non-recursive @* -> *@ occurrence.
+newtype (:@:) (f :: * -> *) a (p1 :: *) (p0 :: *) = App1 (f (a p1 p0))
+
+-- | A recursive @* -> * -> *@ occurrence.
+newtype Rec2 (lbl :: Nat) (t :: * -> * -> *) b a (p1 :: *) (p0 :: *) = Rec2 (t (b p1 p0) (a p1 p0))
+-- | A non-recursive @* -> * -> *@ occurrence.
+newtype (:@@:) (ff :: * -> * -> *) b a (p1 :: *) (p0 :: *) =
+  App2 (ff (b p1 p0) (a p1 p0))
 
 
 
 -- | A mapping to the structural representation of a fields type: just products
 -- of fields, no sums -- fields types have just one constructor.
-type family Rep a
+type family Rep (t :: k) :: * -> * -> *
 
 
 
 -- | Converts between a fields type and its product-of-fields structure.
-class Generic a where rep :: a -> Rep a; obj :: Rep a -> a
+class Generic0 a where rep0 :: a       -> Rep a p1 p0; obj0 :: Rep a p1 p0 -> a
+class Generic1 a where rep1 :: a    p0 -> Rep a p1 p0; obj1 :: Rep a p1 p0 -> a    p0
+class Generic2 a where rep2 :: a p1 p0 -> Rep a p1 p0; obj2 :: Rep a p1 p0 -> a p1 p0
 
 
 
 unDep (Dep x) = x
 
-unRec (Rec x) = x
-mapRec f (Rec x) = Rec (f x)
+unRec0 (Rec0 x) = x
+mapRec0 f (Rec0 x) = Rec0 (f x)
 
-unPar1 (Par1 x) = x
-unPar2 (Par2 x) = x
+unRec1 (Rec1 x) = x
+mapRec1 f (Rec1 x) = Rec1 (f x)
+
+unRec2 (Rec2 x) = x
+mapRec2 f (Rec2 x) = Rec2 (f x)
 
 unN (N x) = x
 foldN f = f . unN
@@ -112,26 +135,29 @@ foldTimes comb f g (a :*: b) = comb (f a) (g b)
 -- | We avoid empty sums with a type-level @Maybe@. @DistMaybePlus@ performs
 -- sum union on lifted sums, only introducing @:+:@ when both arguments are
 -- @Just@s.
-type family DistMaybePlus (a :: Maybe *) (b :: Maybe *) :: Maybe *
+type family DistMaybePlus (a :: Maybe (* -> * -> *)) (b :: Maybe (* -> * -> *)) :: Maybe (* -> * -> *)
 type instance DistMaybePlus Nothing b = b
 type instance DistMaybePlus (Just a) Nothing = Just a
 type instance DistMaybePlus (Just a) (Just b) = Just (a :+: b)
 
 
-
-data Z; data S n
-type family Add n m
+{-
+data Nat = Z | S Nat
+type family Add (n :: Nat) (m :: Nat) :: Nat
 type instance Add Z m = m
 type instance Add (S n) m = S (Add n m)
 
-type family CountRs rep
+type family CountRs (rep :: * -> * -> *) :: Nat
 type instance CountRs (Dep a) = Z
 type instance CountRs (Rec a) = S Z
 type instance CountRs U = Z
 type instance CountRs (a :*: b) = Add (CountRs a) (CountRs b)
+-}
 
 
 
 
 
-concat `fmap` mapM derive_data [''Dep, ''Rec, ''U, ''(:*:), ''N, ''(:+:)]
+
+
+concat `fmap` mapM derive_data [''Dep, ''Rec0, ''Rec1, ''Rec2, ''Par1, ''Par0, ''C, ''U, ''(:*:), ''N, ''(:+:), ''(:@:), ''(:@@:)]
