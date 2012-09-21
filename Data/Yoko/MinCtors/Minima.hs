@@ -5,7 +5,7 @@ module Data.Yoko.MinCtors.Minima
   (NCtor, NRec, NP1, NP0, Minima1, Minima0, Minimum,
    DTsCVec, SumInfo, SC_SumInfo,
    SiblingInT, SiblingInC, addMinima1, addSiblingInTs,
-   solve_sibling_set,
+   solve_sibling_set, solve_sibling_set',
    plug10, plug0, plug10', plug0') where
 
 import Data.Yoko.TypeBasics
@@ -85,8 +85,11 @@ type instance App SC_SumInfo t = SumInfo t
 solve_sibling_set ::
   (Eq (CVec ts Minima1), VRepeat ts,
    VFunctor (SiblingInC ts) ts, VEnum ts) => Vec ts SC_SumInfo -> Work ts
-solve_sibling_set ctors = chaotic (step table) $ initialize table where
-  table = homogenize ctors
+solve_sibling_set = solve_sibling_set' . homogenize
+
+solve_sibling_set' ::
+  (Eq (CVec ts Minima1), VRepeat ts, VEnum ts) => CVec ts (SiblingInT ts) -> Work ts
+solve_sibling_set' table = chaotic (step table) $ initialize table
 
 -- 1) start with the smallest non-recursive ctors
 

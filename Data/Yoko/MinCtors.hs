@@ -2,7 +2,11 @@
   DefaultSignatures, ViewPatterns, FlexibleContexts, FlexibleInstances,
   PolyKinds, MultiParamTypeClasses, Rank2Types #-}
 
-module Data.Yoko.MinCtors (MinCtors(..), gen_minCtors) where
+{-# LANGUAGE TemplateHaskell #-}
+
+{-# OPTIONS_GHC -ddump-splices #-}
+
+module Data.Yoko.MinCtors where -- (MinCtors(..), gen_minCtors) where
 
 import Data.Yoko.TypeBasics
 import Data.Yoko.Representation
@@ -14,6 +18,8 @@ import Data.Yoko.MinCtors.Minima
 
 import Data.Monoid (mappend)
 
+import Data.Yoko.TH
+import Data.Yoko.Invariant
 
 
 --------------------
@@ -72,7 +78,7 @@ unit_s = [unit_p]
 
 
 
-m1c_p, m1d_p :: Prod M1
+{-m1c_p, m1d_p :: Prod M1
 m1c_p = (CVec $ VCons 0 $ VCons 0 VNil, 0, 0, 5)
 m1d_p = (CVec $ VCons 0 $ VCons 1 VNil, 0, 0, 1)
 
@@ -81,12 +87,19 @@ m2c_p = (CVec $ VCons 1 $ VCons 0 VNil, 0, 0, 1)
 
 m1_s :: [Prod M1]; m1_s = [m1c_p, m1d_p]
 m2_s :: [Prod M2]; m2_s = [m2c_p]
-
+-}
 
 
 left_p, right_p :: Prod Either
 left_p  = (CVec VNil, 1, 0, 1)
 right_p = (CVec VNil, 0, 1, 1)
+
+
+
+instance Invariant MyList where invmap = gen_invmap
+data MyList a = MyNil | MyCons a (MyList a)
+
+yokoTH ''MyList
 
 
 
@@ -113,7 +126,7 @@ type instance Rep (a, b)  = Subst10 (,) a b
 type instance DTs (,,)       = NonRecDT
 -- type instance Rep (,,) = undefined
 type instance DTs ((,,) a)   = NonRecDT
-type instance Rep ((,,) a)   = C ((,,) a) (Dep a :*: Par1 :*: Par0)
+type instance Rep ((,,) a)   = C ((,,) a) (Dep0 a :*: Par1 :*: Par0)
 type instance DTs ((,,) a b) = NonRecDT
 type instance Rep ((,,) a b) = Subst1  ((,,) a) b
 type instance DTs (a, b, c)  = NonRecDT
@@ -137,11 +150,34 @@ type instance Rep (Either a) = Subst1 Either a
 type instance DTs (Either a b) = NonRecDT
 type instance Rep (Either a b) = Subst10 Either a b
 
-data Nil_  (p1 :: *) (p0 :: *) = Nil_
-data Cons_ (p1 :: *) (p0 :: *) = Cons_ p0 [p0]
+data Nil_  (p0 :: *) = Nil_
+data Cons_ (p0 :: *) = Cons_ p0 [p0]
+
+type instance Codomain Nil_  = []
+type instance Codomain Cons_ = []
+
+type instance Rep Nil_  = U
+instance Generic1 Nil_ where
+  rep1 _ = U
+  obj1 _ = Nil_
+
+type instance Rep Cons_  = Par0 :*: Rec1 Z [] Par0
+instance Generic1 Cons_ where
+  rep1 (Cons_ a as)          = Par0 a :*: Rec1 (map Par0 as)
+  obj1 (Par0 a :*: Rec1 as') = Cons_ a $ map unPar0 as'
+
+type instance Rep (Nil_ a)  = U
+instance Generic0 (Nil_ a) where
+  rep0 _ = U
+  obj0 _ = Nil_
+
+type instance Rep (Cons_ a) = Subst0 Cons_ a
+instance Generic0 (Cons_ a) where
+  rep0 (Cons_ a as)         = Dep0 a :*: Rec0 as
+  obj0 (Dep0 a :*: Rec0 as) = Cons_ a as
 
 type instance DTs []  = RecDT '[] '[]
-type instance Rep []  = C Nil_ U   :+:   C Cons_ (Rec1 Z [] Par0)
+type instance Rep []  = C Nil_ U   :+:   C Cons_ (Par0 :*: Rec1 Z [] Par0)
 type instance DTs [a] = RecDT '[] '[]
 type instance Rep [a] = Subst0 [] a
 
@@ -175,23 +211,23 @@ instance MinCtors Char where minCtors _ = oneCtor
 
 
 
-deApp :: Proxy (f :@: r) -> (Proxy f, Proxy r)
+deApp :: Proxy (Dep1 f r) -> (Proxy f, Proxy r)
 deApp _ = (Proxy, Proxy)
 
-instance (Ord (CVec ts NRec), MinCtors f, MinInfoRec r ts) => MinInfoRec (f :@: r) ts where
+instance (Ord (CVec ts NRec), MinCtors f, MinInfoRec r ts) => MinInfoRec (Dep1 f r) ts where
   minInfoRec (deApp -> (pf, pr)) pts = minCtors pf `plug0` minInfoRec pr pts
 
-instance (MinCtors f, MinInfoNonRec r) => MinInfoNonRec (f :@: r) where
+instance (MinCtors f, MinInfoNonRec r) => MinInfoNonRec (Dep1 f r) where
   minInfoNonRec (deApp -> (pf, pr)) = minCtors pf `plug0'` minInfoNonRec pr
 
-deApp2 :: Proxy ((ff :@@: r1) r0) -> (Proxy ff, Proxy r1, Proxy r0)
+deApp2 :: Proxy (Dep2 ff r1 r0) -> (Proxy ff, Proxy r1, Proxy r0)
 deApp2 _ = (Proxy, Proxy, Proxy)
 
-instance (Ord (CVec ts NRec), MinCtors ff, MinInfoRec rB ts, MinInfoRec rA ts) => MinInfoRec ((ff :@@: rB) rA) ts where
+instance (Ord (CVec ts NRec), MinCtors ff, MinInfoRec rB ts, MinInfoRec rA ts) => MinInfoRec (Dep2 ff rB rA) ts where
   minInfoRec (deApp2 -> (ff, rB, rA)) pts =
     plug10 (minCtors ff) (minInfoRec rB pts) (minInfoRec rA pts)
 
-instance (MinCtors ff, MinInfoNonRec rB, MinInfoNonRec rA) => MinInfoNonRec ((ff :@@: rB) rA) where
+instance (MinCtors ff, MinInfoNonRec rB, MinInfoNonRec rA) => MinInfoNonRec (Dep2 ff rB rA) where
   minInfoNonRec (deApp2 -> (ff, rB, rA)) = plug10' (minCtors ff) (minInfoNonRec rB) (minInfoNonRec rA)
 
 
@@ -282,13 +318,13 @@ instance (Regularish r s, IndexInto lbl ts, VRepeat ts) => MinInfoRec (Rec2 lbl 
 
 
 
-deDep :: Proxy (Dep t) -> Proxy t
-deDep _ = Proxy
+deDep0 :: Proxy (Dep0 t) -> Proxy t
+deDep0 _ = Proxy
 
-instance (VRepeat ts, MinInfoNonRec (Dep t)) => MinInfoRec (Dep t) ts where
+instance (VRepeat ts, MinInfoNonRec (Dep0 t)) => MinInfoRec (Dep0 t) ts where
   minInfoRec p _ = minima1ToSiblingInT $ minInfoNonRec p
 
-instance MinCtors t => MinInfoNonRec (Dep t) where minInfoNonRec = minCtors . deDep
+instance MinCtors t => MinInfoNonRec (Dep0 t) where minInfoNonRec = minCtors . deDep0
 
 
 
@@ -324,7 +360,9 @@ data T a = One a | Branch (T a, [T a]) Int
 data One_    (p1 :: *) (p0 :: *) = One_ p0
 data Branch_ (p1 :: *) (p0 :: *) = Branch_ (T p0, [T p0]) Int
 
-type instance Rep T     = C One_ Par0   :+:   C Branch_ ((((,) :@@: Rec1 'Z T Par0) ([] :@: Rec1 'Z T Par0)) :*: Dep Int)
+type instance Rep T     = C One_ Par0   :+:   C Branch_ ((Dep2 (,) (Rec1 'Z T Par0)
+                                                                 (Dep1 [] (Rec1 'Z T Par0)))
+                                                         :*: Dep0 Int)
 type instance Rep (T a) = Subst0 T a
 type instance DTs T     = RecDT '[] '[]
 type instance DTs (T a) = RecDT '[] '[]
@@ -339,7 +377,7 @@ data S a = OneS a | BranchS Int Int
 data OneS_    (p1 :: *) (p0 :: *) = OneS_ p0
 data BranchS_ (p1 :: *) (p0 :: *) = BranchS_ Int Int
 
-type instance Rep S     = C OneS_ Par0   :+:   C BranchS_ (Dep Int :*: Dep Int)
+type instance Rep S     = C OneS_ Par0   :+:   C BranchS_ (Dep0 Int :*: Dep0 Int)
 type instance Rep (S a) = Subst0 S a
 type instance DTs S     = NonRecDT
 type instance DTs (S a) = NonRecDT
@@ -357,7 +395,7 @@ data M1C_ (p1 :: *) (p0 :: *) = M1C_
 data M1D_ (p1 :: *) (p0 :: *) = M1D_
 data M2C_ (p1 :: *) (p0 :: *) = M2C_
 
-type instance Rep M1 = C M1C_ (Dep Int :*: Dep Int :*: Dep Int :*: Dep Int)
+type instance Rep M1 = C M1C_ (Dep0 Int :*: Dep0 Int :*: Dep0 Int :*: Dep0 Int)
                    :+: C M1D_ (Rec0 ('S 'Z) M2)
 type instance Rep M2 = C M2C_ (Rec0 'Z      M1)
 type instance DTs M1 = RecDT '[] '[M2]
@@ -420,20 +458,22 @@ pIndex :: Proxy (RecDT l r) -> Proxy (Length l)
 pIndex _ = Proxy
 
 instance (IndexInto (Length l) (SiblingDTs t),
-          VInitialize MinInfo__ (SiblingDTs t),
+          VInitialize (MinInfo__ (SiblingDTs t)) (SiblingDTs t),
           VFunctor (SiblingInC (SiblingDTs t)) (SiblingDTs t),
           VRepeat (SiblingDTs t),
           VEnum (SiblingDTs t),
           Eq (CVec (SiblingDTs t) Minima1),
           MinInfoRec (Rep t) (SiblingDTs t)) => MinCtorsWorker t (RecDT l r) where
-  method pt pdpos = (`cvAt` indexInto (pIndex pdpos) psibs) $ solve_sibling_set $
-                    vInitialize (Proxy :: Proxy MinInfo__) (Proxy :: Proxy SC_SumInfo) minInfo__
+  method pt pdpos = (`cvAt` indexInto (pIndex pdpos) psibs) $ solve_sibling_set' $
+                    cvInitialize (pcon psibs) minInfo__
     where psibs = pSiblingDTs pt
+          pcon :: Proxy ts -> Proxy (MinInfo__ ts)
+          pcon _ = Proxy
 
-class    MinInfoRec (Rep t) (SiblingDTs t) => MinInfo__ t
-instance MinInfoRec (Rep t) (SiblingDTs t) => MinInfo__ t
+class    (MinInfoRec (Rep t) ts, ts ~ SiblingDTs t) => MinInfo__ ts t
+instance (MinInfoRec (Rep t) ts, ts ~ SiblingDTs t) => MinInfo__ ts t
 
-minInfo__ :: MinInfo__ t => Proxy t -> SumInfo t
+minInfo__ :: MinInfo__ ts t => Proxy t -> SiblingInT ts
 minInfo__ p = minInfoRec (pFrom p) (pSiblingDTs p)
 
 
@@ -454,7 +494,7 @@ data Y a = Y (X (X a))
 
 type instance DTs Y     = NonRecDT
 type instance DTs (Y a) = NonRecDT
-type instance Rep Y     = X :@: (X :@: Par0)
+type instance Rep Y     = Dep1 X (Dep1 X Par0)
 type instance Rep (Y a) = Subst0 Y a
 
 instance MinCtors Y

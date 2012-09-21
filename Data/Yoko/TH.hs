@@ -1,4 +1,5 @@
-{-# LANGUAGE TypeOperators, ViewPatterns, TemplateHaskell, PatternGuards, DataKinds #-}
+{-# LANGUAGE TypeOperators, ViewPatterns, TemplateHaskell, PatternGuards,
+  DataKinds, LambdaCase #-}
 
 {- |
 
@@ -21,7 +22,7 @@ applications of types with higher-kinds. This is done by providing a 'Mapping'.
 
 Each 'Mapping' specifies a representation type, its constructor, and a
 structure-preserving mapping function. The default options handle applications
-of @*->*@ and @*->*->*@ types with the 'Par1' and 'Par2' types from
+of @*->*@ and @*->*->*@ types with the 'Dep1' and 'Dep2' types from
 "Data.Yoko.Representation" and uses the 'invmap' and 'invmap2' mapping
 functions from the @invariant@ package.
 
@@ -29,7 +30,7 @@ For example, @yokoTH@ cannot handle @data T = C0 | C1 (T, T, T)@, since '(,,)'
 is applied at kind @*->*->*@. It can, however handle @data U = C0 | C1 (Int, U,
 U)@, since @(,,) Int@ is applied at kind @*->*->*@ -- the kind of the
 application is determined by the leftmost argument with a recursive
-occurrence. In this case, @yokoTH@ uses the default @Mapping ''Par2 'Par2
+occurrence. In this case, @yokoTH@ uses the default @Mapping ''Dep2 'Dep2
 'invmap2@.
 
 The following invocation of @yokoTH_with@ can handle @T@, since it provides an
@@ -101,29 +102,32 @@ import Data.Record.Combinators ((!!!))
 
 convert r = R.convert $ R.withStyle r (Id KindStar)
 
-data Target = Target deriving Show
-data Renamer = Renamer deriving Show
+data Target   = Target   deriving Show
+data Renamer  = Renamer  deriving Show
 data Mappings = Mappings deriving Show
 data BindingGroup = BindingGroup deriving Show
-data TargetData = TargetData deriving Show
-data TargetType = TargetType deriving Show
-data TargetKind = TargetKind deriving Show
-instance R.Name Target where name = Target
-instance R.Name Renamer where name = Renamer
+data TargetData   = TargetData   deriving Show
+data TargetType   = TargetType   deriving Show
+data TargetCxt    = TargetCxt    deriving Show
+data TargetTVBs   = TargetTVBs   deriving Show
+data TargetPars   = TargetPars   deriving Show
+instance R.Name Target   where name = Target
+instance R.Name Renamer  where name = Renamer
 instance R.Name Mappings where name = Mappings
 instance R.Name BindingGroup where name = BindingGroup
-instance R.Name TargetData where name = TargetData
-instance R.Name TargetType where name = TargetType
-instance R.Name TargetKind where name = TargetKind
+instance R.Name TargetData   where name = TargetData
+instance R.Name TargetType   where name = TargetType
+instance R.Name TargetCxt    where name = TargetCxt
+instance R.Name TargetTVBs   where name = TargetTVBs
+instance R.Name TargetPars   where name = TargetPars
 
 
 
 -- | A 'Mapping' identifies the representation type, its constructor, and the
--- associated mapping function. For example, 'Par1' is represented with
--- @Mapping ''Par1 'Par1 'invmap@.
+-- associated mapping function. For example, 'Dep1' is represented with
+-- @Mapping ''Dep1 'Dep1 'invmap@.
 data Mapping = Mapping
-  {containerTypeName :: Name, containerCtor :: Name,
-   methodName :: Name}
+  {containerTypeName :: Name, containerCtor :: Name, methodName :: Name}
 
 -- | The default @yoko@ derivations can be customised.
 data YokoOptions = YokoOptions
@@ -131,7 +135,7 @@ data YokoOptions = YokoOptions
     -- @(++ \"_\")@.
    renamer :: (String -> String) -> (String -> String),
     -- | How applications of higher-rank data types are represented. Defaults
-    -- to @[(1, 'Mapping' ''Par1 'Par1 'invmap), (2, 'Mapping' ''Par2 'Par2 'invmap2)]@.
+    -- to @[(1, 'Mapping' ''Dep1 'Dep1 'invmap), (2, 'Mapping' ''Dep2 'Dep2 'invmap2)]@.
    mappings :: [(Int, Mapping)] -> [(Int, Mapping)]}
 
 -- | The default options. @yokoDefaults = YokoOptions id id@.
@@ -159,8 +163,8 @@ yokoTH n = yokoTH_with yokoDefaults n
 yokoTH_with :: YokoOptions -> Name -> Q [Dec]
 yokoTH_with options n = runM $ yoko0 $ X :&
   Target := n :& Renamer := (mkName . renamer options (++ "_") . TH.nameBase)
-         :& Mappings := mappings options [(1, Mapping ''Par1 'Par1 'invmap),
-                                          (2, Mapping ''Par2 'Par2 'invmap2)]
+         :& Mappings := mappings options [(1, Mapping ''Dep1 'Dep1 'invmap),
+                                          (2, Mapping ''Dep2 'Dep2 'invmap2)]
 
 
 
@@ -169,6 +173,9 @@ yokoTH_with options n = runM $ yoko0 $ X :&
 yoko0 r@(convert -> X :& Target := n) = do
   names <- liftQ $ SCCs.binding_group n
   datatype@(Int.DataType tvbs _) <- liftQ $ Int.dataType n
+
+  let pars = {- TODO -} reverse $ take 2 $ reverse $ tvbs
+  tvbs <- {- TODO -} return $ reverse $ drop 2 $ reverse tvbs
 
   let ty = applyConT2TVBs n tvbs
 
@@ -180,15 +187,17 @@ yoko0 r@(convert -> X :& Target := n) = do
 
   yoko1 $ r :&
     BindingGroup := names :&
-    TargetData := datatype :&
-    TargetType := ty :&
-    TargetKind := (map tvbKind tvbs, cxt)
+    TargetData   := datatype :&
+    TargetType   := ty :&
+    TargetTVBs   := tvbs :&
+    TargetPars   := pars :&
+    TargetCxt    := cxt
 
 -- generate fields types
 conName :: Con -> Name
-conName (NormalC n _) = n
-conName (RecC n _) = n
-conName (InfixC _ n _) = n
+conName (NormalC  n _)  = n
+conName (RecC     n _)  = n
+conName (InfixC _ n _)  = n
 conName (ForallC _ _ c) = conName c
 
 renameCon :: (Name -> Name) -> Con -> Con
@@ -203,6 +212,12 @@ tvbKind (KindedTV _ k) = k
 
 tvbType :: TyVarBndr -> Type
 tvbType = VarT . tvbName
+
+compose :: Exp -> Exp -> Exp
+compose l r = VarE '(.) `AppE` l `AppE` r
+
+postConE :: Name -> Exp -> Exp
+postConE n inj = compose (ConE n) inj
 
 applyConT2TVBs :: Name -> [TyVarBndr] -> Type
 applyConT2TVBs n tvbs = foldl ((. tvbType) . AppT) (ConT n) tvbs
@@ -221,67 +236,95 @@ pat_exp np ne k = (ConP np $ map VarP ns,
 simpleClause pats exp = Clause pats (NormalB exp) []
 
 halves :: [a] -> b -> (b -> b -> b) -> (a -> b) -> b
-halves as nil app each = w (length as) as where
+halves as nil appnd single = w (length as) as where
   w _ []  = nil
-  w _ [a] = each a
-  w k as  = w lk l `app` w rk r
+  w _ [a] = single a
+  w k as  = w lk l `appnd` w rk r
     where lk = k `div` 2   ;   rk = k - lk
           (l, r) = List.splitAt lk as
 
 data FieldRO = FieldRO {repF :: Exp, objF :: Exp}
 
-fieldRO :: [(Int, Mapping)] -> Set Name -> Type -> Q (Type, FieldRO)
-fieldRO maps bg = w' where
+fieldRO :: [(Int, Mapping)] -> Set Name ->
+           [Name] -> -- just the represented parameters (ie Par1 and Par0)
+           Type -> Q (Type, FieldRO)
+fieldRO maps bg tvbNs = w' where
   w' = uncurry w . peelApp
 
   isRec n = Set.member n bg
-
-  simple b ty tys = return $ (ConT tyn `AppT` foldl AppT ty tys,
-    if b then FieldRO (ConE 'Rec) (VarE 'unRec)
-         else FieldRO (ConE 'Dep) (VarE 'unDep))
-    where tyn = if b then ''Rec else ''Dep
+  isPar n = n `elem` tvbNs
+  isImportant n = isRec n || isPar n
 
   w ty tys = case ty of
-    AppT{}              -> Int.thFail $ "impossible: AppT is guarded by peelApp."
-    SigT ty _           -> uncurry w $ peelAppAcc tys ty
-    ForallT{}           -> Int.thFail $ "no support for ForallT."
-    ConT n | isRec n -> do
-      rhs <- expandSyn ty tys
-      case rhs of
-        Just (ty, tys) -> w ty tys
-        Nothing ->
-          if not (null recs) then Int.thFail "no support for nested recursion."
-          else simple True ty tys
-    _
-      | not (null recs) -> case lookup (length recs) maps of
-        Nothing -> Int.thFail $ "no case in the given YokoOptions for type constructors with " ++ show (length recs) ++ " arguments."
-        Just (Mapping {containerTypeName = tyn, containerCtor = ctor,
-                       methodName = mn}) -> do
-          recs <- mapM w' recs
-          let snoc (tyL, fROL) (tyR, fROR) =
-                (tyL `AppT` tyR, fROL `appRO` fROR)
-              appRO l r = FieldRO {repF = repF l `AppE` repF r `AppE` objF r,
-                                   objF = objF l `AppE` objF r `AppE` repF r}
-              post fRO = FieldRO {repF = ConE ctor `compose` repF fRO,
-                                  objF = objF fRO `compose` dtor}
-          return $ Arrow.second post $ foldl snoc
-            (ConT tyn `AppT` container,
-             FieldRO {repF = VarE mn, objF = VarE mn}) recs
-          where dtor = LamE [ConP ctor [VarP x]] (VarE x)
-                  where x = mkName "x"
-      | otherwise -> simple False ty tys
-    where (foldl AppT ty -> container, recs) =
-            List.break (any isRec . Set.toList . SCCs.type_dependencies) tys
+    PromotedT{}      -> Int.thFail $ "no support for promoted types."
+    PromotedTupleT{} -> Int.thFail $ "no support for promoted types."
+    PromotedNilT{}   -> Int.thFail $ "no support for promoted types."
+    PromotedConsT{}  -> Int.thFail $ "no support for promoted types."
+    StarT{}          -> Int.thFail $ "no support for kinds."
+    ConstraintT{}    -> Int.thFail $ "no support for constraint kinds."
+    LitT{}           -> Int.thFail $ "no support for type literals."
+    AppT{}           -> Int.thFail $ "impossible: AppT is guarded by peelApp."
+    ForallT{}        -> Int.thFail $ "no support for ForallT."
+    UnboxedTupleT{}  -> Int.thFail $ "no support for unboxed tuples."
+
+    SigT ty _        -> uncurry w $ peelAppAcc tys ty
+
+    VarT n | Just k <- List.findIndex (== n) $ reverse tvbNs ->
+      if null tys then return $
+        let (tyn, ctor, dtor) = case k of
+              0 -> (''Par0, 'Par0, 'unPar0)
+              1 -> (''Par1, 'Par1, 'unPar1)
+        in (ConT tyn, FieldRO (ConE ctor) (VarE dtor))
+      else Int.thFail $ "no support for higher-kinded parameters."
+
+    ConT n | isRec n -> expandSyn ty tys >>= \case
+      Just (ty, tys) -> w ty tys
+      Nothing        -> hkt recPack ty tys
+        where recPack = case length tvbNs of
+                0 -> (''Rec0, 'Rec0, 'unRec0)
+                1 -> (''Rec1, 'Rec1, 'unRec1)
+                2 -> (''Rec2, 'Rec2, 'unRec2)
+
+    -- catches only non-recursive higher-kinded types
+    _ -> case null importants of
+      True  -> return $ -- nothing important in the arguments
+        (ConT ''Dep0 `AppT` foldl AppT ty tys,   FieldRO (ConE 'Dep0) (VarE 'unDep0))
+      False -> hkt depPack container importants
+      where (foldl AppT ty -> container, importants) =
+                List.break (any isImportant . Set.toList . SCCs.type_dependencies) tys
+            depPack = case length tvbNs of
+              0 -> (''Dep0, 'Dep0, 'unDep0)
+              1 -> (''Dep1, 'Dep1, 'unDep1)
+              2 -> (''Dep2, 'Dep2, 'unDep2)
+
+  hkt (nTy, nCtor, nDtor) container importants = case lookup (length importants) maps of
+    Nothing -> Int.thFail $ "no case in the given YokoOptions for type constructors with " ++ show (length importants) ++ " arguments."
+    Just (Mapping {containerTypeName = tyn, containerCtor = ctor,
+                   methodName = mn}) -> do
+      importants <- mapM w' importants
+      let snoc (tyL, fROL) (tyR, fROR) = (tyL `AppT` tyR, fROL `appRO` fROR)
+          appRO l r = FieldRO {repF = repF l `AppE` repF r `AppE` objF r,
+                               objF = objF l `AppE` objF r `AppE` repF r}
+          post fRO = FieldRO {repF = ConE ctor `compose` repF fRO,
+                              objF = objF fRO `compose` dtor}
+      return $ Arrow.second post $ foldl snoc
+        (ConT tyn `AppT` container,
+         FieldRO {repF = VarE mn, objF = VarE mn}) importants
+      where dtor = LamE [ConP ctor [VarP x]] (VarE x)
+              where x = mkName "x"
 
 data ConRO = ConRO {repP :: [Pat], repE :: Exp, objP :: Pat, objE :: [Exp]}
 
 yoko1 r@(convert -> X :&
-  Renamer := rn :&
-  Mappings := maps :&
+  Target       := tyn :&
+  Renamer      := rn :&
+  Mappings     := maps :&
   BindingGroup := bg :&
-  TargetData := Int.DataType tvbs cons :&
-  TargetType := ty :&
-  TargetKind := (ks, cxt)
+  TargetData   := Int.DataType _ cons :&
+  TargetType   := ty :&
+  TargetPars   := pars :&
+  TargetTVBs   := tvbs :&
+  TargetCxt    := cxt
         ) = do
   loc <- liftQ TH.location
 
@@ -291,28 +334,40 @@ yoko1 r@(convert -> X :&
               NameG TcClsName (mkPkgName $ loc_package loc)
                       (mkModName $ loc_module loc)
 
-  liftQ (sequence [do
+  -- for every constructor in the type, generate the fields types and its instances
+  (>>= (generate . concat)) $ liftQ $ flip mapM (either (:[]) id cons) $ \con -> do
     let n = conName con
         n' = rn n
         fd = applyConT2TVBs n' tvbs
 
     fields <- conFields con
 
+    let (nDC, nRejoin) = case length pars of
+          0 -> (''DC0, 'rejoin0)
+          1 -> (''DC1, 'rejoin1)
+          2 -> (''DC2, 'rejoin2)
+
     -- declare the fields type and its Codomain/Tag/DC instances
-    let yokoD = 
-          [Int.dataType2Dec n' (Int.DataType tvbs (Right [renameCon rn con])),
+    let yokoD =
+          [Int.dataType2Dec n' (Int.DataType (tvbs ++ pars) (Right [renameCon rn con])),
            TySynInstD ''Codomain [fd] ty,
            TySynInstD ''Tag   [fd] $ encode $ TH.nameBase n,
-           InstanceD cxt (ConT ''DC `AppT` fd)
+           InstanceD cxt (ConT nDC `AppT` fd)
              [let (pat, exp) = pat_exp n' n $ length fields
-              in FunD 'rejoin [simpleClause [pat] exp]]
+              in FunD nRejoin [simpleClause [pat] exp]]
           ]
 
-    -- declare the Rep and Generic instances
+    -- integrate with type-spine and type-cereal
+    spineD  <- spineType_d_ (mkG n') $ map tvbKind tvbs
+    cerealD <- serializeTypeAsHash_data (mkG n')
+
+    -- for each partial application of the fields type, declare the Rep and
+    -- Generic RHSs
     (repTy, (conRO, _)) <- Arrow.second ($ 0) `fmap` halves fields
           (return (ConT ''U, \s ->
                    (ConRO {repP = [], repE = ConE 'U,
                            objP = WildP, objE = []}, s)))
+
           (\l r -> l >>= \(tyL, roL) -> r >>= \(tyR, roR) -> return $
             (ConT ''(:*:) `AppT` tyL `AppT` tyR,
              \s -> case roL s of
@@ -322,41 +377,45 @@ yoko1 r@(convert -> X :&
                            repE = ConE '(:*:) `AppE` repE roL `AppE` repE roR,
                            objP = ConP '(:*:) [objP roL, objP roR],
                            objE = objE roL ++ objE roR}, s)))
+
           (\(_, ty) ->
              let post fRO s =
                    (ConRO {repP = [VarP n], repE = repF fRO `AppE` VarE n,
                            objP = VarP n, objE = [objF fRO `AppE` VarE n]},
                     s + 1)
                    where n = mkName $ "x" ++ show s
-             in Arrow.second post `fmap` fieldRO maps bg ty)
+             in Arrow.second post `fmap`
+                fieldRO maps bg (map tvbName pars) ty)
 
-    let genD = [TySynInstD ''Rep [fd] repTy,
-                InstanceD cxt (ConT ''Generic `AppT` fd)
-                 [FunD 'rep [simpleClause [ConP n' (repP conRO)] $ repE conRO],
-                  FunD 'obj [simpleClause [objP conRO] $
-                               foldl AppE (ConE n') $ objE conRO]]]
+    let (nGeneric, nRep, nObj) = case length pars of
+          0 -> (''Generic0, 'rep0, 'obj0)
+          1 -> (''Generic1, 'rep1, 'obj1)
+          2 -> (''Generic2, 'rep2, 'obj2)
 
-    -- integrate with type-spine and type-cereal
-    spineD <- spineType_d_ (mkG n') ks
-    cerealD <- serializeTypeAsHash_data (mkG n')
+    let genD = TySynInstD ''Rep [fd] repTy :
+               [ InstanceD cxt (ConT nGeneric `AppT` fd)
+                 [FunD nRep [simpleClause [ConP n' (repP conRO)] $ repE conRO],
+                  FunD nObj [simpleClause [objP conRO] $
+                              foldl AppE (ConE n') $ objE conRO]]]
 
     return $ yokoD ++ spineD ++ cerealD ++ genD
-       | con <- either (:[]) id cons ]) >>= generate . concat
 
-  yoko2 r
+  yoko2 $ r :& TargetPars := pars
 
 -- generate DCs/DT instances
-compose l r = VarE '(.) `AppE` l `AppE` r
-
-postConE :: Name -> Exp -> Exp
-postConE n inj = compose (ConE n) inj
-
 yoko2 r@(convert -> X :&
-  Renamer := rn :&
-  TargetData := Int.DataType tvbs cons :&
+  Renamer    := rn :&
+  TargetData := Int.DataType _ cons :&
   TargetType := ty :&
-  TargetKind := (_, cxt)
+  TargetPars := pars :&
+  TargetTVBs := tvbs :&
+  TargetCxt  := cxt
         ) = do
+  let (nDT, nDisband, nN, nNCtor) = case length pars of
+        0 -> (''DT0, 'disband0, ''N0, 'N0)
+        1 -> (''DT1, 'disband1, ''N1, 'N1)
+        2 -> (''DT2, 'disband2, ''N2, 'N2)
+
   (dcs, cases) <- liftQ $ halves (either (:[]) id cons)
     (Int.thFail $ "`" ++ show (r !!! Target :: Name) ++ "' must have constructors.")
     (\l r -> do
@@ -368,11 +427,11 @@ yoko2 r@(convert -> X :&
     (\con -> do
        fields <- length `fmap` conFields con
        return $ let n = conName con
-                in (ConT ''N `AppT` applyConT2TVBs (rn n) tvbs,
-                    [(ConE 'N, (n, fields))]))
+                in (ConT nN `AppT` applyConT2TVBs (rn n) tvbs,
+                    [(ConE nNCtor, (n, fields))]))
 
   cases <- return $ flip map cases $ \(inj, (n, fds)) ->
     let (pat, exp) = pat_exp n (rn n) fds
     in simpleClause [pat] $ inj `AppE` exp
   generate $ [TySynInstD ''DCs [ty] dcs,
-              InstanceD cxt (ConT ''DT `AppT` ty) [FunD 'disband cases]]
+              InstanceD cxt (ConT nDT `AppT` ty) [FunD nDisband cases]]

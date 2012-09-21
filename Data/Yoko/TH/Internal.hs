@@ -35,10 +35,13 @@ data DataType = DataType [TyVarBndr] (Either Con [Con])
 dataType :: Name -> Q DataType
 dataType n = do
   i <- reify n
+  let refine = map $ \tvb -> case tvb of
+        PlainTV n -> KindedTV n StarT
+        _ -> tvb
   case i of
     TyConI d -> case d of
-      DataD _ _ tvbs cons _   -> return $ DataType tvbs $ Right cons
-      NewtypeD _ _ tvbs con _ -> return $ DataType tvbs $ Left con
+      DataD _ _ tvbs cons _   -> return $ DataType (refine tvbs) $ Right cons
+      NewtypeD _ _ tvbs con _ -> return $ DataType (refine tvbs) $ Left con
       _ -> thFail $ "expecting name of newtype or data type, not: " ++ show d
     _ -> thFail $ "expecting name of newtype or data type, not: " ++ show i
 

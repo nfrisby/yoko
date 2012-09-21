@@ -224,7 +224,13 @@ cvAddIndexes = cvZipWith (,) cvEnum
 
 type instance App Proxy t = Proxy t
 
-class VInitialize c ts where vInitialize :: Proxy c -> Proxy f -> (forall t. c t => Proxy t -> App f t) -> Vec ts f
-instance VInitialize c '[] where vInitialize _ _ _ = VNil
+class VInitialize c ts where
+  vInitialize  :: Proxy c -> Proxy f -> (forall t. c t => Proxy t -> App f t) -> Vec  ts f
+  cvInitialize :: Proxy c ->            (forall t. c t => Proxy t -> a) ->       CVec ts a
+instance VInitialize c '[] where
+  vInitialize  _ _ _ = VNil
+  cvInitialize _   _ = CVec VNil
 instance (c t, VInitialize c ts) => VInitialize c (t ': ts) where
-  vInitialize pc pf x = VCons (x (Proxy :: Proxy t)) (vInitialize pc pf x)
+  vInitialize  pc pf x = VCons (x (Proxy :: Proxy t)) (vInitialize  pc pf x)
+  cvInitialize pc    x = CVec $
+                         VCons (x (Proxy :: Proxy t)) (unCVec $ cvInitialize pc    x)
