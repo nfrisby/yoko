@@ -4,7 +4,7 @@
 
 {-# LANGUAGE TemplateHaskell #-}
 
-{-# OPTIONS_GHC -ddump-splices #-}
+-- {-# OPTIONS_GHC -ddump-splices #-}
 
 module Data.Yoko.MinCtors where -- (MinCtors(..), gen_minCtors) where
 
@@ -19,167 +19,24 @@ import Data.Yoko.MinCtors.Minima
 import Data.Monoid (mappend)
 
 import Data.Yoko.TH
-import Data.Yoko.Invariant
-
 
 --------------------
 -- miscellaneous
 
-pFrom :: Proxy t -> Proxy (Rep t)
-pFrom _ = Proxy
+pDisband :: Proxy t -> Proxy (DCs t)
+pDisband _ = Proxy
 
-type Prod t = (DTsCVec t NRec, NP1, NP0, NCtor)
-
-
-
---------------------
--- example reflections using the 'Minima' abstraction
-nil_p, cons_p :: Prod []
-nil_p  = (CVec $ VCons 0 VNil, 0, 0, 1)
-cons_p = (CVec $ VCons 1 VNil, 0, 1, 1)
-
-list_s :: [Prod []]; list_s = [nil_p, cons_p]
-
-data Stream a = SCons a (Stream a)
-type instance DTs Stream = RecDT '[] '[]
-
-scons_p :: Prod Stream
-scons_p = (CVec $ VCons 1 VNil, 0, 1, 1)
-
-stream_s :: [Prod Stream]; stream_s = [scons_p]
-
-data Even a = ENil | ECons a (Odd  a)
-data Odd  a =        OCons a (Even a)
-type instance DTs Even = RecDT '[]     '[Odd]
-type instance DTs Odd  = RecDT '[Even] '[]
-
-data ENil_  (p1 :: *) (p0 :: *) = ENil_
-data ECons_ (p1 :: *) (p0 :: *) = ECons_
-data OCons_ (p1 :: *) (p0 :: *) = OCons_
-
-type instance Rep Even = C ENil_ U   :+: C ECons_ (Par0 :*: Rec1 ('S 'Z) Odd Par0)
-type instance Rep Odd  = C OCons_ (Par0 :*: Rec1 'Z Even Par0)
-
-enil_p, econs_p :: Prod Even
-ocons_p         :: Prod Odd
-
-enil_p  = (CVec $ VCons (0 :: Int) $ VCons 0 VNil, 0, 0, 1)
-econs_p = (CVec $ VCons (0 :: Int) $ VCons 1 VNil, 0, 1, 1)
-ocons_p = (CVec $ VCons (1 :: Int) $ VCons 0 VNil, 0, 1, 1)
-
-even_s :: [Prod Even]; even_s = [enil_p, econs_p]
-odd_s  :: [Prod Odd] ; odd_s  = [ocons_p]
-
-unit_p :: Prod ()
-unit_p = (CVec VNil, 0, 0, 1)
-
-unit_s :: [Prod ()]
-unit_s = [unit_p]
+pRep :: Proxy t -> Proxy (Rep t)
+pRep _ = Proxy
 
 
 
-{-m1c_p, m1d_p :: Prod M1
-m1c_p = (CVec $ VCons 0 $ VCons 0 VNil, 0, 0, 5)
-m1d_p = (CVec $ VCons 0 $ VCons 1 VNil, 0, 0, 1)
-
-m2c_p :: Prod M2
-m2c_p = (CVec $ VCons 1 $ VCons 0 VNil, 0, 0, 1)
-
-m1_s :: [Prod M1]; m1_s = [m1c_p, m1d_p]
-m2_s :: [Prod M2]; m2_s = [m2c_p]
--}
-
-
-left_p, right_p :: Prod Either
-left_p  = (CVec VNil, 1, 0, 1)
-right_p = (CVec VNil, 0, 1, 1)
 
 
 
-instance Invariant MyList where invmap = gen_invmap
-data MyList a = MyNil | MyCons a (MyList a)
-
-yokoTH ''MyList
 
 
 
---------------------
--- TH will generate this eventually...
-data False_ (p1 :: *) (p0 :: *) = False_
-data True_  (p1 :: *) (p0 :: *) = True_
-
-type instance DTs Bool = NonRecDT
-type instance Rep Bool = C False_ U   :+:   C True_ U
-
-newtype Tuple0_ (p1 :: *) (p0 :: *) = Tuple0_ ()
-
-type instance DTs () = NonRecDT
-type instance Rep () = C Tuple0_ U
-
-type instance DTs (,)     = NonRecDT
-type instance Rep (,)     = C (,) (Par1 :*: Par0)
-type instance DTs ((,) a) = NonRecDT -- TODO ? map ($ a) (DTs (,))
-type instance Rep ((,) a) = Subst1  (,) a
-type instance DTs (a, b)  = NonRecDT
-type instance Rep (a, b)  = Subst10 (,) a b
-
-type instance DTs (,,)       = NonRecDT
--- type instance Rep (,,) = undefined
-type instance DTs ((,,) a)   = NonRecDT
-type instance Rep ((,,) a)   = C ((,,) a) (Dep0 a :*: Par1 :*: Par0)
-type instance DTs ((,,) a b) = NonRecDT
-type instance Rep ((,,) a b) = Subst1  ((,,) a) b
-type instance DTs (a, b, c)  = NonRecDT
-type instance Rep (a, b, c)  = Subst10 ((,,) a) b c
-
-data Nothing_ (p1 :: *) (p0 :: *) = Nothing_
-data Just_    (p1 :: *) (p0 :: *) = Just_ p0
-
-type instance DTs Maybe     = NonRecDT
-type instance Rep Maybe     = C Nothing_ U   :+:   C Just_ Par0
-type instance DTs (Maybe a) = NonRecDT
-type instance Rep (Maybe a) = Subst0 Maybe a
-
-data Left_  (p1 :: *) (p0 :: *) = Left_  p1
-data Right_ (p1 :: *) (p0 :: *) = Right_ p0
-
-type instance DTs Either = NonRecDT
-type instance Rep Either = C Left_ Par1   :+: C Right_ Par0
-type instance DTs (Either a) = NonRecDT
-type instance Rep (Either a) = Subst1 Either a
-type instance DTs (Either a b) = NonRecDT
-type instance Rep (Either a b) = Subst10 Either a b
-
-data Nil_  (p0 :: *) = Nil_
-data Cons_ (p0 :: *) = Cons_ p0 [p0]
-
-type instance Codomain Nil_  = []
-type instance Codomain Cons_ = []
-
-type instance Rep Nil_  = U
-instance Generic1 Nil_ where
-  rep1 _ = U
-  obj1 _ = Nil_
-
-type instance Rep Cons_  = Par0 :*: Rec1 Z [] Par0
-instance Generic1 Cons_ where
-  rep1 (Cons_ a as)          = Par0 a :*: Rec1 (map Par0 as)
-  obj1 (Par0 a :*: Rec1 as') = Cons_ a $ map unPar0 as'
-
-type instance Rep (Nil_ a)  = U
-instance Generic0 (Nil_ a) where
-  rep0 _ = U
-  obj0 _ = Nil_
-
-type instance Rep (Cons_ a) = Subst0 Cons_ a
-instance Generic0 (Cons_ a) where
-  rep0 (Cons_ a as)         = Dep0 a :*: Rec0 as
-  obj0 (Dep0 a :*: Rec0 as) = Cons_ a as
-
-type instance DTs []  = RecDT '[] '[]
-type instance Rep []  = C Nil_ U   :+:   C Cons_ (Par0 :*: Rec1 Z [] Par0)
-type instance DTs [a] = RecDT '[] '[]
-type instance Rep [a] = Subst0 [] a
 
 
 
@@ -206,8 +63,6 @@ oneCtor = MMap.singleton (0, 0) $ Min 1
 
 
 
-instance MinCtors Int  where minCtors _ = oneCtor
-instance MinCtors Char where minCtors _ = oneCtor
 
 
 
@@ -234,13 +89,36 @@ instance (MinCtors ff, MinInfoNonRec rB, MinInfoNonRec rA) => MinInfoNonRec (Dep
 
 instance (VRepeat ts) => MinInfoRec (Void t) ts where minInfoRec _ _ = minima1ToSiblingInT void
 instance MinInfoNonRec (Void t) where minInfoNonRec _ = void
-{-
-deN :: Proxy (N dc) -> Proxy dc
-deN _ = Proxy
 
-instance MinInfo1 dc => MinInfo1 (N dc) where
-  minInfo1 = map (on1_3 succ) . minInfo1 . deN
--}
+
+
+deN0 :: Proxy (N0 dc) -> Proxy dc
+deN0 _ = Proxy
+
+instance MinInfoRec (Rep dc) ts => MinInfoRec (N0 dc) ts where
+  minInfoRec = minInfoRec . pRep . deN0
+instance MinInfoNonRec (Rep dc) => MinInfoNonRec (N0 dc) where
+  minInfoNonRec = minInfoNonRec . pRep . deN0
+
+deN1 :: Proxy (N1 dc) -> Proxy dc
+deN1 _ = Proxy
+
+instance MinInfoRec (Rep dc) ts => MinInfoRec (N1 dc) ts where
+  minInfoRec = minInfoRec . pRep . deN1
+instance MinInfoNonRec (Rep dc) => MinInfoNonRec (N1 dc) where
+  minInfoNonRec = minInfoNonRec . pRep . deN1
+
+deN2 :: Proxy (N2 dc) -> Proxy dc
+deN2 _ = Proxy
+
+instance MinInfoRec (Rep dc) ts => MinInfoRec (N2 dc) ts where
+  minInfoRec = minInfoRec . pRep . deN2
+instance MinInfoNonRec (Rep dc) => MinInfoNonRec (N2 dc) where
+  minInfoNonRec = minInfoNonRec . pRep . deN2
+
+
+
+
 
 deC :: Proxy (C t r) -> Proxy r
 deC _ = Proxy
@@ -329,110 +207,6 @@ instance MinCtors t => MinInfoNonRec (Dep0 t) where minInfoNonRec = minCtors . d
 
 
 
---------------------
--- usages
-instance MinCtors Bool
-instance MinCtors ()
-
-
-instance MinCtors (,)
-instance MinCtors a => MinCtors ((,) a)
-instance (MinCtors a, MinCtors b) => MinCtors ((,) a b)
-
-instance MinCtors a => MinCtors ((,,) a) -- TODO why does this one work?
-
-instance MinCtors Maybe
-instance MinCtors a => MinCtors (Maybe a)
-
-instance MinCtors []
-instance MinCtors a => MinCtors [a]
-
-instance MinCtors Either
-instance MinCtors a => MinCtors (Either a)
-instance (MinCtors a, MinCtors b) => MinCtors (Either a b)
-
-
-
--- T tests support for interesting structures as well as avoiding the recursive
--- branch
-data T a = One a | Branch (T a, [T a]) Int
-
-data One_    (p1 :: *) (p0 :: *) = One_ p0
-data Branch_ (p1 :: *) (p0 :: *) = Branch_ (T p0, [T p0]) Int
-
-type instance Rep T     = C One_ Par0   :+:   C Branch_ ((Dep2 (,) (Rec1 'Z T Par0)
-                                                                 (Dep1 [] (Rec1 'Z T Par0)))
-                                                         :*: Dep0 Int)
-type instance Rep (T a) = Subst0 T a
-type instance DTs T     = RecDT '[] '[]
-type instance DTs (T a) = RecDT '[] '[]
-
-instance MinCtors T
-
-
-
--- S tests one interesting way that the final answer depends on the parameter
-data S a = OneS a | BranchS Int Int
-
-data OneS_    (p1 :: *) (p0 :: *) = OneS_ p0
-data BranchS_ (p1 :: *) (p0 :: *) = BranchS_ Int Int
-
-type instance Rep S     = C OneS_ Par0   :+:   C BranchS_ (Dep0 Int :*: Dep0 Int)
-type instance Rep (S a) = Subst0 S a
-type instance DTs S     = NonRecDT
-type instance DTs (S a) = NonRecDT
-
-instance MinCtors S
-instance MinCtors a => MinCtors (S a)
-
-
-
--- M1 and M2 exercise the erroneous definition for Recs
-data M1 = M1C Int Int Int Int | M1D M2
-data M2 = M2C M1
-
-data M1C_ (p1 :: *) (p0 :: *) = M1C_
-data M1D_ (p1 :: *) (p0 :: *) = M1D_
-data M2C_ (p1 :: *) (p0 :: *) = M2C_
-
-type instance Rep M1 = C M1C_ (Dep0 Int :*: Dep0 Int :*: Dep0 Int :*: Dep0 Int)
-                   :+: C M1D_ (Rec0 ('S 'Z) M2)
-type instance Rep M2 = C M2C_ (Rec0 'Z      M1)
-type instance DTs M1 = RecDT '[] '[M2]
-type instance DTs M2 = RecDT '[M1] '[]
-
-instance MinCtors M1
-instance MinCtors M2
-
-
-
-data Z_ (p1 :: *) (p0 :: *) = Z_
-data S_ (p1 :: *) (p0 :: *) = S_
-
-type instance Rep Nat = C Z_ U   :+:   C S_ (Rec0 Z Nat)
-type instance DTs Nat = RecDT '[] '[]
-
-instance MinCtors Nat
-
-
-
-
-data Inf = Inf Inf
-data Inf_ (p1 :: *) (p0 :: *) = Inf_ Inf
-
-type instance DTs Inf = RecDT '[] '[]
-type instance Rep Inf = C Inf_ (Rec0 Z Inf)
-
-instance MinCtors Inf
-
-
-
-
-
-instance MinCtors Even
-instance MinCtors Odd
-
-
 
 
 
@@ -447,12 +221,17 @@ class MinCtors t where
   default minCtors :: MinCtorsWorker t (DTs t) => Proxy t -> Minima1
   minCtors = gen_minCtors
 
+instance MinCtors Int    where minCtors _ = oneCtor
+instance MinCtors Char   where minCtors _ = oneCtor
+instance MinCtors Float  where minCtors _ = oneCtor
+instance MinCtors Double where minCtors _ = oneCtor
+
 class MinCtorsWorker t dpos where method :: Proxy t -> Proxy dpos -> Minima1
 
 pSiblingDTs :: Proxy t -> Proxy (SiblingDTs t)
 pSiblingDTs _ = Proxy
 
-instance MinInfoNonRec (Rep t) => MinCtorsWorker t NonRecDT where method pt _ = minInfoNonRec (pFrom pt)
+instance MinInfoNonRec (DCs t) => MinCtorsWorker t NonRecDT where method pt _ = minInfoNonRec (pDisband pt)
 
 pIndex :: Proxy (RecDT l r) -> Proxy (Length l)
 pIndex _ = Proxy
@@ -463,18 +242,63 @@ instance (IndexInto (Length l) (SiblingDTs t),
           VRepeat (SiblingDTs t),
           VEnum (SiblingDTs t),
           Eq (CVec (SiblingDTs t) Minima1),
-          MinInfoRec (Rep t) (SiblingDTs t)) => MinCtorsWorker t (RecDT l r) where
+          MinInfoRec (DCs t) (SiblingDTs t)) => MinCtorsWorker t (RecDT l r) where
   method pt pdpos = (`cvAt` indexInto (pIndex pdpos) psibs) $ solve_sibling_set' $
                     cvInitialize (pcon psibs) minInfo__
     where psibs = pSiblingDTs pt
           pcon :: Proxy ts -> Proxy (MinInfo__ ts)
           pcon _ = Proxy
 
-class    (MinInfoRec (Rep t) ts, ts ~ SiblingDTs t) => MinInfo__ ts t
-instance (MinInfoRec (Rep t) ts, ts ~ SiblingDTs t) => MinInfo__ ts t
+class    (MinInfoRec (DCs t) ts, ts ~ SiblingDTs t) => MinInfo__ ts t
+instance (MinInfoRec (DCs t) ts, ts ~ SiblingDTs t) => MinInfo__ ts t
 
 minInfo__ :: MinInfo__ ts t => Proxy t -> SiblingInT ts
-minInfo__ p = minInfoRec (pFrom p) (pSiblingDTs p)
+minInfo__ p = minInfoRec (pDisband p) (pSiblingDTs p)
+
+
+
+
+
+
+
+
+
+
+
+-- T tests support for interesting structures as well as avoiding the recursive
+-- branch
+data T a = One a | Branch (T a, [T a]) Int
+
+yokoTH ''T
+
+
+
+
+
+-- S tests one interesting way that the final answer depends on the parameter
+data S a = OneS a | BranchS Int Int
+
+yokoTH ''S
+
+
+
+-- M1 and M2 exercise the erroneous definition for Recs
+data M1 = M1C Int Int Int Int | M1D M2
+data M2 = M2C M1
+
+yokoTH ''M1
+yokoTH ''M2
+
+
+
+
+yokoTH ''Nat
+
+
+
+data Inf = Inf Inf
+
+yokoTH ''Inf
 
 
 
@@ -482,20 +306,109 @@ minInfo__ p = minInfoRec (pFrom p) (pSiblingDTs p)
 
 data X a = X a a a a
 
-type instance DTs X     = NonRecDT
-type instance DTs (X a) = NonRecDT
-type instance Rep X     = Par0 :*: Par0 :*: Par0 :*: Par0
-type instance Rep (X a) = Subst0 X a
+yokoTH ''X
+
+data Y a = Y (X (X a))
+
+yokoTH ''Y
+
+yokoTH ''Bool
+
+yokoTH ''()
+
+type instance DTs (,,) = NonRecDT
+
+yokoTH_with (yokoDefaults {invInsts = \_ -> False}) ''(,)
+yokoTH_with (yokoDefaults {invInsts = \_ -> False}) ''(,,)
+yokoTH_with (yokoDefaults {invInsts = \_ -> False}) ''Maybe
+yokoTH_with (yokoDefaults {invInsts = \_ -> False}) ''Either
+
+data Nil_  (p0 :: *) = Nil_
+data Cons_ (p0 :: *) = Cons_ p0 [p0]
+
+type instance Codomain Nil_  = []
+type instance Codomain Cons_ = []
+
+type instance Rep (Nil_ a)  = Subst0 Nil_ a
+instance Generic0 (Nil_ a) where
+  rep0 _ = C U; obj0 _ = Nil_
+
+type instance Rep Nil_  = C Nil_ U
+instance Generic1 Nil_ where
+  rep1 _ = C U; obj1 _ = Nil_
+
+type instance Rep (Cons_ a) = Subst0 Cons_ a
+instance Generic0 (Cons_ a) where
+  rep0 (Cons_ a as)         = C (Dep0 a :*: Rec0 as)
+  obj0 (C (Dep0 a :*: Rec0 as)) = Cons_ a as
+
+type instance Rep Cons_ = C Cons_ (Par0 :*: Rec1 'Z [] Par0)
+instance Generic1 Cons_ where
+  rep1 (Cons_ a as)             = C (Par0 a :*: Rec1 (map Par0 as))
+  obj1 (C (Par0 a :*: Rec1 as)) = Cons_ a (map unPar0 as)
+
+type instance DTs []  = RecDT '[] '[]
+type instance DCs []  = N1 Nil_     :+: N1 Cons_
+type instance DTs [a] = RecDT '[] '[]
+type instance DCs [a] = N0 (Nil_ a) :+: N0 (Cons_ a)
+
+
+data Stream a = SCons a (Stream a)
+type instance DTs Stream = RecDT '[] '[]
+
+yokoTH ''Stream
+
+data Even a = ENil | ECons a (Odd  a)
+data Odd  a =        OCons a (Even a)
+
+yokoTH ''Even
+yokoTH ''Odd
+
+
+
 
 instance MinCtors X
 instance MinCtors a => MinCtors (X a)
 
-data Y a = Y (X (X a))
-
-type instance DTs Y     = NonRecDT
-type instance DTs (Y a) = NonRecDT
-type instance Rep Y     = Dep1 X (Dep1 X Par0)
-type instance Rep (Y a) = Subst0 Y a
-
 instance MinCtors Y
 instance MinCtors a => MinCtors (Y a)
+
+instance MinCtors Stream
+instance MinCtors a => MinCtors (Stream a)
+
+instance MinCtors T
+instance MinCtors a => MinCtors (T a)
+instance MinCtors S
+instance MinCtors a => MinCtors (S a)
+instance MinCtors M1
+instance MinCtors M2
+instance MinCtors Nat
+instance MinCtors Inf
+
+
+instance MinCtors Even
+instance MinCtors Odd
+instance MinCtors a => MinCtors (Even a)
+instance MinCtors a => MinCtors (Odd  a)
+
+--------------------
+-- usages
+instance MinCtors Bool
+instance MinCtors ()
+
+
+instance MinCtors (,)
+instance MinCtors a => MinCtors ((,) a)
+instance (MinCtors a, MinCtors b) => MinCtors ((,) a b)
+
+instance MinCtors a => MinCtors ((,,) a)
+
+instance MinCtors Maybe
+instance MinCtors a => MinCtors (Maybe a)
+
+instance MinCtors []
+instance MinCtors a => MinCtors [a]
+
+instance MinCtors Either
+instance MinCtors a => MinCtors (Either a)
+instance (MinCtors a, MinCtors b) => MinCtors (Either a b)

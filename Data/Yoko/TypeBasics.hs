@@ -28,7 +28,7 @@ module Data.Yoko.TypeBasics (
   VRepeat(..), Diag_(..), VZip(..), cvZipWith,
   Idx(..), IndexInto(..), cvAt, cvUpd, VEnum(..), cvAddIndexes,
   -- ** Re-exports
-  module Data.Yoko.MaybeKind, encode
+  module Data.Yoko.MaybeKind, encode, SpineCompare
   ) where
 
 import Data.Monoid

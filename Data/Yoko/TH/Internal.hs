@@ -27,6 +27,10 @@ thFail :: String -> Q a
 thFail s = fail $ "yokoTH: " ++ s
 
 
+thWarn :: String -> Q ()
+thWarn s = reportWarning $ "yokoTH: " ++ s
+
+
 
 data DataType = DataType [TyVarBndr] (Either Con [Con])
 

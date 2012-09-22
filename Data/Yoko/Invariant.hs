@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators, LambdaCase, FlexibleContexts, UndecidableInstances #-}
+{-# LANGUAGE TypeOperators, LambdaCase, FlexibleContexts, UndecidableInstances, PolyKinds #-}
 
 module Data.Yoko.Invariant
   (module Data.Yoko.Invariant, module Data.Functor.Invariant) where
