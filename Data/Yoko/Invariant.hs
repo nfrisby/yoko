@@ -53,23 +53,14 @@ instance Invariant2 Void where invmap2 = error "invmap2 @Void"
 
 
 
-instance Invariant2 (Rec0 lbl t) where
-  invmap2 _ _ _ _ (Rec0 x) = Rec0 x
+instance Invariant2 (T0 v t) where
+  invmap2 _ _ _ _ (T0 x) = T0 x
 
-instance (Invariant t, Invariant2 r) => Invariant2 (Rec1 lbl t r) where
-  invmap2 f f' g g' (Rec1 x) = Rec1 $ invmap (invmap2 f f' g g') (invmap2 f' f g' g) x
+instance (Invariant t, Invariant2 r) => Invariant2 (T1 v t r) where
+  invmap2 f f' g g' (T1 x) = T1 $ invmap (invmap2 f f' g g') (invmap2 f' f g' g) x
 
-instance (Invariant2 t, Invariant2 r, Invariant2 s) => Invariant2 (Rec2 lbl t r s) where
-  invmap2 f f' g g' (Rec2 x) = Rec2 $ invmap2 (invmap2 f f' g g') (invmap2 f' f g' g) (invmap2 f f' g g') (invmap2 f' f g' g) x
-
-instance Invariant2 (Dep0 t) where
-  invmap2 _ _ _ _ (Dep0 x) = Dep0 x
-
-instance (Invariant t, Invariant2 r) => Invariant2 (Dep1 t r) where
-  invmap2 f f' g g' (Dep1 x) = Dep1 $ invmap (invmap2 f f' g g') (invmap2 f' f g' g) x
-
-instance (Invariant2 t, Invariant2 r, Invariant2 s) => Invariant2 (Dep2 t r s) where
-  invmap2 f f' g g' (Dep2 x) = Dep2 $ invmap2 (invmap2 f f' g g') (invmap2 f' f g' g) (invmap2 f f' g g') (invmap2 f' f g' g) x
+instance (Invariant2 t, Invariant2 r, Invariant2 s) => Invariant2 (T2 v t r s) where
+  invmap2 f f' g g' (T2 x) = T2 $ invmap2 (invmap2 f f' g g') (invmap2 f' f g' g) (invmap2 f f' g g') (invmap2 f' f g' g) x
 
 
 

@@ -23,8 +23,8 @@ module Data.Yoko.Representation
    -- ** Products
    U(..), (:*:)(..),
    -- ** Fields
-   Rec0(..), Rec1(..), Rec2(..),
-   Dep0(..), Dep1(..), Dep2(..), Par1(..), Par0(..),
+   T0(..), T1(..), T2(..), Variety(..),
+   Par1(..), Par0(..),
    -- ** Conversions to and from fields-of-products structure
    Rep, Generic0(..), Generic1(..), Generic2(..),
    -- ** Auxilliaries
@@ -34,12 +34,9 @@ module Data.Yoko.Representation
    unN2, foldN2, mapN2,
    foldPlus, mapPlus,
    foldTimes, mapTimes,
-   unDep0, mapDep0,
-   unDep1, mapDep1,
-   unDep2, mapDep2,
-   unRec0, mapRec0,
-   unRec1, mapRec1,
-   unRec2, mapRec2,
+   unT0, mapT0,
+   unT1, mapT1,
+   unT2, mapT2,
    unPar0, mapPar0,
    unPar1, mapPar1,
    DistMaybePlus
@@ -47,6 +44,9 @@ module Data.Yoko.Representation
 
 import Data.Yoko.TypeBasics
 
+
+
+data Variety = Rec Nat | Dep
 
 
 
@@ -84,21 +84,9 @@ newtype Par0 (p1 :: *) (p0 :: *) = Par0 p0
 
 
 
--- | A recursive @*@ occurrence.
-newtype Rec0 (lbl :: Nat) a (p1 :: *) (p0 :: *) = Rec0 a
--- | A non-recursive @*@ occurrence.
-newtype Dep0 (a :: *) (p1 :: *) (p0 :: *) = Dep0 a
-
--- | A recursive occurrence.
-newtype Rec1 (lbl :: Nat) (t :: * -> *) a (p1 :: *) (p0 :: *) = Rec1 (t (a p1 p0))
--- | A non-recursive @* -> *@ occurrence.
-newtype Dep1 (f :: * -> *) a (p1 :: *) (p0 :: *) = Dep1 (f (a p1 p0))
-
--- | A recursive @* -> * -> *@ occurrence.
-newtype Rec2 (lbl :: Nat) (t :: * -> * -> *) b a (p1 :: *) (p0 :: *) = Rec2 (t (b p1 p0) (a p1 p0))
--- | A non-recursive @* -> * -> *@ occurrence.
-newtype Dep2 (ff :: * -> * -> *) b a (p1 :: *) (p0 :: *) =
-  Dep2 (ff (b p1 p0) (a p1 p0))
+newtype T0 (v :: Variety) t                      (p1 :: *) (p0 :: *) = T0  t
+newtype T1 (v :: Variety) (t :: * -> *)        a (p1 :: *) (p0 :: *) = T1 (t           (a p1 p0))
+newtype T2 (v :: Variety) (t :: * -> * -> *) b a (p1 :: *) (p0 :: *) = T2 (t (b p1 p0) (a p1 p0))
 
 
 
@@ -115,24 +103,14 @@ class Generic2 a where rep2 :: a p1 p0 -> Rep a p1 p0; obj2 :: Rep a p1 p0 -> a 
 
 
 
-unDep0 (Dep0 x) = x
-mapDep0 f (Dep0 x) = Dep0 (f x)
+unT0 (T0 x) = x
+mapT0 f (T0 x) = T0 (f x)
 
-unDep1 (Dep1 x) = x
-mapDep1 f (Dep1 x) = Dep1 (f x)
+unT1 (T1 x) = x
+mapT1 f (T1 x) = T1 (f x)
 
-unDep2 (Dep2 x) = x
-mapDep2 f (Dep2 x) = Dep2 (f x)
-
-
-unRec0 (Rec0 x) = x
-mapRec0 f (Rec0 x) = Rec0 (f x)
-
-unRec1 (Rec1 x) = x
-mapRec1 f (Rec1 x) = Rec1 (f x)
-
-unRec2 (Rec2 x) = x
-mapRec2 f (Rec2 x) = Rec2 (f x)
+unT2 (T2 x) = x
+mapT2 f (T2 x) = T2 (f x)
 
 unPar0 (Par0 x) = x
 mapPar0 f (Par0 x) = Par0 (f x)
@@ -196,4 +174,5 @@ type instance CountRs (a :*: b) = Add (CountRs a) (CountRs b)
 
 
 
-concat `fmap` mapM derive_data [''Dep0, ''Rec0, ''Rec1, ''Rec2, ''Par1, ''Par0, ''C, ''U, ''(:*:), ''N0, ''N1, ''N2, ''(:+:), ''Dep1, ''Dep2]
+concat `fmap` mapM derive_data [''Variety, ''T0, ''T1, ''T2, ''Par1, ''Par0, ''C, ''U, ''(:*:), ''N0, ''N1, ''N2, ''(:+:)]
+concat `fmap` mapM derive_pro ['Rec, 'Dep, 'Z, 'S]

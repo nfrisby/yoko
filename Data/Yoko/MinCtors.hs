@@ -61,23 +61,23 @@ nCtors n _ = MMap.singleton (0, 0) $ Min n
 
 
 
-deApp :: Proxy (Dep1 f r) -> (Proxy f, Proxy r)
+deApp :: Proxy (T1 v f r) -> (Proxy f, Proxy r)
 deApp _ = (Proxy, Proxy)
 
-instance (Ord (CVec ts NRec), MinCtors f, MinInfoRec r ts) => MinInfoRec (Dep1 f r) ts where
+instance (Ord (CVec ts NRec), MinCtors f, MinInfoRec r ts) => MinInfoRec (T1 Dep f r) ts where
   minInfoRec (deApp -> (pf, pr)) pts = minCtors pf `plug0` minInfoRec pr pts
 
-instance (MinCtors f, MinInfoNonRec r) => MinInfoNonRec (Dep1 f r) where
+instance (MinCtors f, MinInfoNonRec r) => MinInfoNonRec (T1 Dep f r) where
   minInfoNonRec (deApp -> (pf, pr)) = minCtors pf `plug0'` minInfoNonRec pr
 
-deApp2 :: Proxy (Dep2 ff r1 r0) -> (Proxy ff, Proxy r1, Proxy r0)
+deApp2 :: Proxy (T2 v ff r1 r0) -> (Proxy ff, Proxy r1, Proxy r0)
 deApp2 _ = (Proxy, Proxy, Proxy)
 
-instance (Ord (CVec ts NRec), MinCtors ff, MinInfoRec rB ts, MinInfoRec rA ts) => MinInfoRec (Dep2 ff rB rA) ts where
+instance (Ord (CVec ts NRec), MinCtors ff, MinInfoRec rB ts, MinInfoRec rA ts) => MinInfoRec (T2 Dep ff rB rA) ts where
   minInfoRec (deApp2 -> (ff, rB, rA)) pts =
     plug10 (minCtors ff) (minInfoRec rB pts) (minInfoRec rA pts)
 
-instance (MinCtors ff, MinInfoNonRec rB, MinInfoNonRec rA) => MinInfoNonRec (Dep2 ff rB rA) where
+instance (MinCtors ff, MinInfoNonRec rB, MinInfoNonRec rA) => MinInfoNonRec (T2 Dep ff rB rA) where
   minInfoNonRec (deApp2 -> (ff, rB, rA)) = plug10' (minCtors ff) (minInfoNonRec rB) (minInfoNonRec rA)
 
 
@@ -158,24 +158,24 @@ instance (VRepeat ts, MinInfoNonRec Par0) => MinInfoRec Par0 ts where
 
 
 
-deRec0 :: Proxy (Rec0 lbl t) -> Proxy lbl
+deRec0 :: Proxy (T0 (Rec lbl) t) -> Proxy lbl
 deRec0 _ = Proxy
 
-instance (IndexInto lbl ts, VRepeat ts) => MinInfoRec (Rec0 lbl t) ts where
+instance (IndexInto lbl ts, VRepeat ts) => MinInfoRec (T0 (Rec lbl) t) ts where
   minInfoRec (deRec0 -> plbl) pts =
     MMap.singleton (cvUpd (cvRepeat 0) (indexInto plbl pts) $ \_ -> 1, 0, 0) $ Min 0
 
-deRec1 :: Proxy (Rec1 lbl t r) -> Proxy lbl
+deRec1 :: Proxy (T1 (Rec lbl) t r) -> Proxy lbl
 deRec1 _ = Proxy
 
 -- TODO: how to support non-regular data types?
 
 -- NB only supports regular data types for now
-instance (IndexInto lbl ts, VRepeat ts) => MinInfoRec (Rec1 lbl t Par0) ts where
+instance (IndexInto lbl ts, VRepeat ts) => MinInfoRec (T1 (Rec lbl) t Par0) ts where
   minInfoRec (deRec1 -> plbl) pts =
     MMap.singleton (cvUpd (cvRepeat 0) (indexInto plbl pts) $ \_ -> 1, 0, 0) $ Min 0
 
-deRec2 :: Proxy (Rec2 lbl t r s) -> Proxy lbl
+deRec2 :: Proxy (T2 (Rec lbl) t r s) -> Proxy lbl
 deRec2 _ = Proxy
 
 class Regularish r s where
@@ -185,19 +185,19 @@ instance Regularish Par0 Par1 where regularish _ y = y
 -- NB no other instances!
 
 -- NB only supports regularish data types for now
-instance (Regularish r s, IndexInto lbl ts, VRepeat ts) => MinInfoRec (Rec2 lbl t r s) ts where
+instance (Regularish r s, IndexInto lbl ts, VRepeat ts) => MinInfoRec (T2 (Rec lbl) t r s) ts where
   minInfoRec (deRec2 -> plbl) pts =
     MMap.singleton (cvUpd (cvRepeat 0) (indexInto plbl pts) $ \_ -> 1, 0, 0) $ Min 0
 
 
 
-deDep0 :: Proxy (Dep0 t) -> Proxy t
+deDep0 :: Proxy (T0 v t) -> Proxy t
 deDep0 _ = Proxy
 
-instance (VRepeat ts, MinInfoNonRec (Dep0 t)) => MinInfoRec (Dep0 t) ts where
+instance (VRepeat ts, MinInfoNonRec (T0 Dep t)) => MinInfoRec (T0 Dep t) ts where
   minInfoRec p _ = minima1ToSiblingInT $ minInfoNonRec p
 
-instance MinCtors t => MinInfoNonRec (Dep0 t) where minInfoNonRec = minCtors . deDep0
+instance MinCtors t => MinInfoNonRec (T0 Dep t) where minInfoNonRec = minCtors . deDep0
 
 
 

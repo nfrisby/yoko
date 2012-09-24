@@ -22,7 +22,7 @@ applications of types with higher-kinds. This is done by providing a 'Mapping'.
 
 Each 'Mapping' specifies a representation type, its constructor, and a
 structure-preserving mapping function. The default options handle applications
-of @*->*@ and @*->*->*@ types with the 'Dep1' and 'Dep2' types from
+of @*->*@ and @*->*->*@ types with the 'T1' and 'T2' types from
 "Data.Yoko.Representation" and uses the 'invmap' and 'invmap2' mapping
 functions from the @invariant@ package.
 
@@ -30,7 +30,7 @@ For example, @yokoTH@ cannot handle @data T = C0 | C1 (T, T, T)@, since '(,,)'
 is applied at kind @*->*->*@. It can, however handle @data U = C0 | C1 (Int, U,
 U)@, since @(,,) Int@ is applied at kind @*->*->*@ -- the kind of the
 application is determined by the leftmost argument with a recursive
-occurrence. In this case, @yokoTH@ uses the default @Mapping ''Dep2 'Dep2
+occurrence. In this case, @yokoTH@ uses the default @Mapping ''T2 'T2
 'invmap2@.
 
 The following invocation of @yokoTH_with@ can handle @T@, since it provides an
@@ -137,8 +137,8 @@ instance R.Name ConFields    where name = ConFields
 
 
 -- | A 'Mapping' identifies the representation type, its constructor, and the
--- associated mapping function. For example, 'Dep1' is represented with
--- @Mapping ''Dep1 'Dep1 'invmap@.
+-- associated mapping function. For example, 'T1' is represented with @Mapping
+-- ''T1 'T1 'invmap@.
 data Mapping = Mapping
   {containerTypeName :: Name, containerCtor :: Name, methodName :: Name}
 
@@ -148,7 +148,8 @@ data YokoOptions = YokoOptions
     -- @(++ \"_\")@.
    renamer :: (String -> String) -> (String -> String),
     -- | How applications of higher-rank data types are represented. Defaults
-    -- to @[(1, 'Mapping' ''Dep1 'Dep1 'invmap), (2, 'Mapping' ''Dep2 'Dep2 'invmap2)]@.
+    -- to @[(1, 'Mapping' ''T1 'T1 'invmap), (2, 'Mapping' ''T2 'T2
+    -- 'invmap2)]@.
    mappings :: [(Int, Mapping)] -> [(Int, Mapping)],
     -- | Should instances of 'Invariant' also be automatically derived for this
     -- type? Defaults to @True@.
@@ -187,8 +188,8 @@ yokoTH n = yokoTH_with yokoDefaults n
 yokoTH_with :: YokoOptions -> Name -> Q [Dec]
 yokoTH_with options n = runM $ yoko0 $ X :&
   Target := n :& Renamer := (mkName . renamer options (++ "_") . TH.nameBase)
-         :& Mappings := mappings options [(1, Mapping ''Dep1 'Dep1 'invmap),
-                                          (2, Mapping ''Dep2 'Dep2 'invmap2)]
+         :& Mappings := mappings options [(1, Mapping ''T1 'T1 'invmap),
+                                          (2, Mapping ''T2 'T2 'invmap2)]
          :& InvInsts := invInsts options True
          :& DCInsts := dcInsts options
 
@@ -286,9 +287,9 @@ fieldRO maps bg parNs = w' where
   isImportant n = isRec n || isPar n
 
   (nRecTy, nRecCtor) = case length parNs of
-    0 -> (''Rec0, 'Rec0)
-    1 -> (''Rec1, 'Rec1)
-    2 -> (''Rec2, 'Rec2)
+    0 -> (''T0, 'T0)
+    1 -> (''T1, 'T1)
+    2 -> (''T2, 'T2)
 
   w ty tys = case ty of
     PromotedT{}      -> Int.thFail $ "no support for promoted types."
@@ -326,17 +327,17 @@ fieldRO maps bg parNs = w' where
               List.break (any isImportant . Set.toList . namesIn) tys
 
   appliedRec lbl container tys = case null tys of
-    True -> return (ConT ''Rec0 `AppT` toNat lbl `AppT` container, FieldRO (ConE 'Rec0) (VarE 'unRec0))
+    True -> return (ConT ''T0 `AppT` (PromotedT 'Rec `AppT` toNat lbl) `AppT` container, FieldRO (ConE 'T0) (VarE 'unT0))
     False -> case lookup (length tys) maps of
       Nothing -> Int.thFail $ "no case in the given YokoOptions for type constructors with " ++ show (length tys) ++ " arguments."
-      Just (Mapping {methodName = mn}) -> appliedType (ConT nRecTy `AppT` toNat lbl, nRecCtor, mn) container tys
+      Just (Mapping {methodName = mn}) -> appliedType (ConT nRecTy `AppT` (PromotedT 'Rec `AppT` toNat lbl), nRecCtor, mn) container tys
 
   appliedDep container tys = case null tys of
-    True -> return (ConT ''Dep0 `AppT` container, FieldRO (ConE 'Dep0) (VarE 'unDep0))
+    True -> return (ConT ''T0 `AppT` PromotedT 'Dep `AppT` container, FieldRO (ConE 'T0) (VarE 'unT0))
     False -> case lookup (length tys) maps of
       Nothing -> Int.thFail $ "no case in the given YokoOptions for type constructors with " ++ show (length tys) ++ " arguments."
-      Just (Mapping {containerTypeName = tyn, containerCtor = ctor,
-                     methodName = mn}) -> appliedType (ConT tyn, ctor, mn) container tys
+      Just (Mapping {containerTypeName = tyn, containerCtor = ctor, methodName = mn}) ->
+        appliedType (ConT tyn `AppT` PromotedT 'Dep, ctor, mn) container tys
 
   appliedType (rTy, nCtor, nMap) ty tys = do
     tys <- mapM w' tys

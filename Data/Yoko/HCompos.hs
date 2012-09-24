@@ -113,16 +113,16 @@ instance (MapRs0 cnv msg dc dc' a a', MapRs0 cnv msg dc dc' b b'
 instance MapRs0 cnv msg dc dc' a a' => MapRs0 cnv msg dc dc' (C dcA a) (C dcB a') where
   mapRs0 cnv msgp p1 p2 (C x) = C <$> mapRs0 cnv msgp p1 p2 x
 
-instance Convert0 cnv a b => MapRs0 cnv msg dc dc' (Rec0 lbl a) (Rec0 lbl' b) where
-  mapRs0 cnv _ _ _ (Rec0 x) = Rec0 <$> convert0 cnv x
+instance Convert0 cnv a b => MapRs0 cnv msg dc dc' (T0 (Rec lbl) a) (T0 (Rec lbl') b) where
+  mapRs0 cnv _ _ _ (T0 x) = T0 <$> convert0 cnv x
 
-instance Applicative (Idiom cnv) => MapRs0 cnv msg dc dc' (Dep0 a) (Dep0 a) where
+instance Applicative (Idiom cnv) => MapRs0 cnv msg dc dc' (T0 Dep a) (T0 Dep a) where
   mapRs0 _ _ _ _ = pure
 
 instance (Traversable f, MapRs0 cnv msg dc dc' a a'
-         ) => MapRs0 cnv msg dc dc' (Dep1 f a) (Dep1 f a') where
-  mapRs0 cnv msgp p1 p2 (Dep1 x) = Dep1 <$> traverse (mapRs0 cnv msgp p1 p2) x
+         ) => MapRs0 cnv msg dc dc' (T1 Dep f a) (T1 Dep f a') where
+  mapRs0 cnv msgp p1 p2 (T1 x) = T1 <$> traverse (mapRs0 cnv msgp p1 p2) x
 
 instance (Bitraversable f, MapRs0 cnv msg dc dc' a a', MapRs0 cnv msg dc dc' b b'
-         ) => MapRs0 cnv msg dc dc' (Dep2 f a b) (Dep2 f a' b') where
-  mapRs0 cnv msgp p1 p2 (Dep2 x) = Dep2 <$> bitraverse (mapRs0 cnv msgp p1 p2) (mapRs0 cnv msgp p1 p2) x
+         ) => MapRs0 cnv msg dc dc' (T2 Dep f a b) (T2 Dep f a' b') where
+  mapRs0 cnv msgp p1 p2 (T2 x) = T2 <$> bitraverse (mapRs0 cnv msgp p1 p2) (mapRs0 cnv msgp p1 p2) x

@@ -111,7 +111,7 @@ instance (Partition (DCs (Codomain dc)) (N2 dc) (DCs (Codomain dc) :-: N2 dc),
 -- take a representation, C or above and excluding Recs/Pars, to an actual *
 -- type
 type family Eval (r :: * -> * -> *) :: *
-type instance Eval (Dep0 t)          = t
+type instance Eval (T0 Dep t)       = t
 --type instance Eval Void           = ???
 type instance Eval (l :+: r)        = Eval l -- equivalently, Eval r
 type instance Eval (C  (dc :: *) r) = Codomain dc
@@ -134,26 +134,26 @@ type instance Subst spec (C dc r) = C dc (Subst spec r)
 type instance Subst spec U         = U
 type instance Subst spec (l :*: r) = Subst spec l :*: Subst spec r
 
-type instance Subst (Sub0  par0     ) Par0 = Dep0 par0
+type instance Subst (Sub0  par0     ) Par0 = T0 Dep par0
 type instance Subst (Sub1  par1     ) Par0 = Par0
-type instance Subst (Sub10 par1 par0) Par0 = Dep0 par0
-type instance Subst (Sub1  par1     ) Par1 = Dep0 par1
-type instance Subst (Sub10 par1 par0) Par1 = Dep0 par1
+type instance Subst (Sub10 par1 par0) Par0 = T0 Dep par0
+type instance Subst (Sub1  par1     ) Par1 = T0 Dep par1
+type instance Subst (Sub10 par1 par0) Par1 = T0 Dep par1
 
-type instance Subst (Sub0 par0) (Rec1 lbl t a) = Rec0 lbl (t (Eval (Subst (Sub0 par0) a)))
+type instance Subst (Sub0 par0) (T1 (Rec lbl) t a) = T0 (Rec lbl) (t (Eval (Subst (Sub0 par0) a)))
 --type instance Subst (Sub1 par1) (Rec0 lbl t) = undefined
 --type instance Subst (Sub10 par1 par0) (Rec1 lbl t a) = undefined
 
 --type instance Subst (Sub0 par0 (Rec2 lbl t b a) = undefined
-type instance Subst (Sub1 par1) (Rec2 lbl t b a) =
-  Rec1 lbl    (t (Eval (Subst (Sub1 par1) b)))    (Subst (Sub1 par1) a)
-type instance Subst (Sub10 par1 par0) (Rec2 lbl t b a) =
-  Rec0 lbl    (t (Eval (Subst (Sub10 par1 par0) b))    (Eval (Subst (Sub10 par1 par0) a)))
+type instance Subst (Sub1 par1) (T2 (Rec lbl) t b a) =
+  T1 (Rec lbl)    (t (Eval (Subst (Sub1 par1) b)))    (Subst (Sub1 par1) a)
+type instance Subst (Sub10 par1 par0) (T2 (Rec lbl) t b a) =
+  T0 (Rec lbl)    (t (Eval (Subst (Sub10 par1 par0) b))    (Eval (Subst (Sub10 par1 par0) a)))
 
-type instance Subst spec (Dep0 t)  = Dep0 t
+type instance Subst spec (T0 Dep t)  = T0 Dep t
 
-type instance Subst spec (Dep1 f x  ) = Dep1 f (Subst spec x)
-type instance Subst spec (Dep2 f x y) = Dep2 f (Subst spec x) (Subst spec y)
+type instance Subst spec (T1 Dep f x  ) = T1 Dep f (Subst spec x)
+type instance Subst spec (T2 Dep f x y) = T2 Dep f (Subst spec x) (Subst spec y)
 
 
 

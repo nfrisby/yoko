@@ -46,16 +46,11 @@ instance (DeepSeq2 a, DeepSeq2 b) => DeepSeq2 (a :*: b) where
   rnf2 = foldTimes seq rnf2 rnf2
 instance DeepSeq2 a => DeepSeq2 (C dc a) where rnf2 = rnf2 . unC
 
-instance DeepSeq0 a => DeepSeq2 (Rec0 lbl a) where rnf2 = rnf0 . unRec0
-instance (Functor f, DeepSeq1 f, DeepSeq2 a) => DeepSeq2 (Rec1 lbl f a) where
-  rnf2 = rnf1 . fmap rnf2 . unRec1
-instance (Bifunctor f, DeepSeq2 f, DeepSeq2 a, DeepSeq2 b) => DeepSeq2 (Rec2 lbl f a b) where
-  rnf2 = rnf2 . bimap rnf2 rnf2 . unRec2
-instance DeepSeq0 a => DeepSeq2 (Dep0 a) where rnf2 = rnf0 . unDep0
-instance (Functor f, DeepSeq1 f, DeepSeq2 a) => DeepSeq2 (Dep1 f a) where
-  rnf2 = rnf1 . fmap rnf2 . unDep1
-instance (Bifunctor f, DeepSeq2 f, DeepSeq2 a, DeepSeq2 b) => DeepSeq2 (Dep2 f a b) where
-  rnf2 = rnf2 . bimap rnf2 rnf2 . unDep2
+instance DeepSeq0 a => DeepSeq2 (T0 v a) where rnf2 = rnf0 . unT0
+instance (Functor f, DeepSeq1 f, DeepSeq2 a) => DeepSeq2 (T1 v f a) where
+  rnf2 = rnf1 . fmap rnf2 . unT1
+instance (Bifunctor f, DeepSeq2 f, DeepSeq2 a, DeepSeq2 b) => DeepSeq2 (T2 (Rec lbl) f a b) where
+  rnf2 = rnf2 . bimap rnf2 rnf2 . unT2
 
 instance DeepSeq2 Par0 where rnf2 (Par0 ()) = ()
 instance DeepSeq2 Par1 where rnf2 (Par1 ()) = ()

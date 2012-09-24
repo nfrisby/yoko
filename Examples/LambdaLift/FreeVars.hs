@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators, FlexibleContexts, UndecidableInstances, KindSignatures #-}
+{-# LANGUAGE TypeOperators, FlexibleContexts, UndecidableInstances, KindSignatures, DataKinds, FlexibleInstances #-}
 
 {- |
 
@@ -72,10 +72,8 @@ instance (FreeVars2 a, FreeVars2 b) => FreeVars2 (a :*: b) where
 instance FreeVars2 a => FreeVars2 (C dc a) where freeVars2 = freeVars2 . unC
 
 -- through fields
-instance FreeVars a => FreeVars2 (Rec0 lbl a) where
-  freeVars2 = freeVars . unRec0
-instance (Foldable f, FreeVars2 a) => FreeVars2 (Rec1 lbl f a) where
-  freeVars2 = foldMap freeVars2 . unRec1
-instance FreeVars2 (Dep0 a) where freeVars2 = const IS.empty
-instance (Foldable f, FreeVars2 a) => FreeVars2 (Dep1 f a) where
-  freeVars2 = foldMap freeVars2 . unDep1
+instance FreeVars a => FreeVars2 (T0 (Rec lbl) a) where
+  freeVars2 = freeVars . unT0
+instance FreeVars2 (T0 Dep a) where freeVars2 = const IS.empty
+instance (Foldable f, FreeVars2 a) => FreeVars2 (T1 v f a) where
+  freeVars2 = foldMap freeVars2 . unT1
