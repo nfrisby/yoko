@@ -28,8 +28,8 @@ module Data.Yoko.View
 
 import Data.Yoko.TypeBasics
 import Data.Yoko.Representation
---import Data.Yoko.TypeSums (Embed, Partition, (:-:))
---import Data.Yoko.Each
+import Data.Yoko.TypeSums (Embed, Partition, (:-:))
+import Data.Yoko.Each
 
 import Type.Digits (Digit)
 
@@ -46,9 +46,9 @@ type family Tag (dc :: k) :: Digit
 -- which case it just uses the left-most.
 type family Codomain (dc :: k) :: k
 
-type family Codomain0 (dc :: k) :: *
-type family Codomain1 (dc :: k) :: * -> *
-type family Codomain2 (dc :: k) :: * -> * -> *
+type family Codomain0 (dc :: * -> * -> *) :: *
+type family Codomain1 (dc :: * -> * -> *) :: * -> *
+type family Codomain2 (dc :: * -> * -> *) :: * -> * -> *
 type instance Codomain0 (N0 dc   ) = Codomain dc
 type instance Codomain1 (N1 dc   ) = Codomain dc
 type instance Codomain2 (N2 dc   ) = Codomain dc
@@ -85,39 +85,24 @@ class (Generic2 dc, DT2 (Codomain dc)) => DC2 dc where rejoin2 :: dc p1 p0 -> Co
 -- | The @DCs@ of a data type is sum of all of its fields types.
 type family DCs (t :: k) :: * -> * -> *
 -- | @DT@ disbands a data type if all of its fields types have @DC@ instances.
-class Reband0 t (DCs t) => DT0 t where disband0 :: t       -> DCs t p1 p0
-class Reband1 t (DCs t) => DT1 t where disband1 :: t    p0 -> DCs t p1 p0
-class Reband2 t (DCs t) => DT2 t where disband2 :: t p1 p0 -> DCs t p1 p0
+class Each0 (IsDCOf0 t) (DCs t) => DT0 t where disband0 :: t       -> DCs t p1 p0
+class Each1 (IsDCOf1 t) (DCs t) => DT1 t where disband1 :: t    p0 -> DCs t p1 p0
+class Each2 (IsDCOf2 t) (DCs t) => DT2 t where disband2 :: t p1 p0 -> DCs t p1 p0
 
---class (Partition (DCs (Codomain dc)) (N dc) (DCs (Codomain dc) :-: N dc),
---       Embed (N dc) (DCs (Codomain dc))) => IsDCOf dc
---instance (Partition (DCs (Codomain dc)) (N dc) (DCs (Codomain dc) :-: N dc),
---          Embed (N dc) (DCs (Codomain dc))) => IsDCOf dc
+class (Partition (DCs (Codomain dc)) (N0 dc) (DCs (Codomain dc) :-: N0 dc),
+       Embed (N0 dc) (DCs (Codomain dc)), Codomain dc ~ t) => IsDCOf0 t dc
+instance (Partition (DCs (Codomain dc)) (N0 dc) (DCs (Codomain dc) :-: N0 dc),
+          Embed (N0 dc) (DCs (Codomain dc)), Codomain dc ~ t) => IsDCOf0 t dc
 
+class (Partition (DCs (Codomain dc)) (N1 dc) (DCs (Codomain dc) :-: N1 dc),
+       Embed (N1 dc) (DCs (Codomain dc)), Codomain dc ~ t) => IsDCOf1 t dc
+instance (Partition (DCs (Codomain dc)) (N1 dc) (DCs (Codomain dc) :-: N1 dc),
+          Embed (N1 dc) (DCs (Codomain dc)), Codomain dc ~ t) => IsDCOf1 t dc
 
-
-
-
-class Reband0 t r where reband0 :: r p1 p0 -> t
-instance (DC0 dc, Codomain dc ~ t) => Reband0 t (N0 dc) where reband0 (N0 x) = rejoin0 x
-instance (Reband0 t l, Reband0 t r) => Reband0 t (l :+: r) where
-  reband0 = \case (L x) -> reband0 x; (R x) -> reband0 x
-
-class Reband1 t r where reband1 :: r p1 p0 -> t p0
-instance (DC1 dc, Codomain dc ~ t) => Reband1 t (N1 dc) where reband1 (N1 x) = rejoin1 x
-instance (Reband1 t l, Reband1 t r) => Reband1 t (l :+: r) where
-  reband1 = \case (L x) -> reband1 x; (R x) -> reband1 x
-
-class Reband2 t r where reband2 :: r p1 p0 -> t p1 p0
-instance (DC2 dc, Codomain dc ~ t) => Reband2 t (N2 dc) where reband2 (N2 x) = rejoin2 x
-instance (Reband2 t l, Reband2 t r) => Reband2 t (l :+: r) where
-  reband2 = \case (L x) -> reband2 x; (R x) -> reband2 x
-
-
-
-
-
-
+class (Partition (DCs (Codomain dc)) (N2 dc) (DCs (Codomain dc) :-: N2 dc),
+       Embed (N2 dc) (DCs (Codomain dc)), Codomain dc ~ t) => IsDCOf2 t dc
+instance (Partition (DCs (Codomain dc)) (N2 dc) (DCs (Codomain dc) :-: N2 dc),
+          Embed (N2 dc) (DCs (Codomain dc)), Codomain dc ~ t) => IsDCOf2 t dc
 
 
 

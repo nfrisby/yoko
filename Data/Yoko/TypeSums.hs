@@ -1,5 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, TypeFamilies, TypeOperators,
-  NoPolyKinds, DataKinds #-}
+{-# LANGUAGE MultiParamTypeClasses, TypeFamilies, TypeOperators, PolyKinds, DataKinds #-}
 
 {-# LANGUAGE FlexibleInstances, FlexibleContexts, UndecidableInstances,
   ScopedTypeVariables, EmptyDataDecls #-}
@@ -34,7 +33,7 @@ import Control.Arrow (left)
 
 
 
-class Embed sub sup where embed_ :: sub p1 p0 -> sup p1 p0
+class Embed sub sup where embed_ :: sub (p1 :: *) (p0 :: *) -> sup p1 p0
 
 embed :: Embed sub sup => sub p1 p0 -> sup p1 p0
 embed = embed_
@@ -44,7 +43,7 @@ inject = embed . N0
 
 
 
-class Partition sup subL subR where partition_ :: sup p1 p0 -> Either (subL p1 p0) (subR p1 p0)
+class Partition sup subL subR where partition_ :: sup (p1 :: *) (p0 :: *) -> Either (subL p1 p0) (subR p1 p0)
 
 partition :: Partition sup sub (sup :-: sub) =>
              sup p1 p0 -> Either (sub p1 p0) ((sup :-: sub) p1 p0)
@@ -57,12 +56,12 @@ project = left unN0 . partition_
 
 
 
-data Here (a :: *)
-data TurnLeft  path
-data TurnRight path
+data Path k = Here k | TurnLeft (Path k) | TurnRight (Path k)
 
-type family Locate (a :: *) (sum :: * -> * -> *) :: Maybe *
+type family Locate (a :: k) (sum :: * -> * -> *) :: Maybe (Path k)
 type instance Locate a (N0 x)     = If (Equal x a) (Just (Here a)) Nothing
+type instance Locate a (N1 x)     = If (Equal x a) (Just (Here a)) Nothing
+type instance Locate a (N2 x)     = If (Equal x a) (Just (Here a)) Nothing
 type instance Locate a (l :+: r) =
   MaybeMap TurnLeft (Locate a l) `MaybePlus1`
   MaybeMap TurnRight (Locate a r)
@@ -74,8 +73,10 @@ type Elem a sum = IsJust (Locate a sum)
 
 
 
-class InjectAt path a sum where injectAt :: Proxy path -> a -> sum p1 p0
-instance InjectAt (Here a) a (N0 a) where injectAt _ = N0
+class InjectAt path n sum where injectAt :: Proxy path -> n (p1 :: *) (p0 :: *) -> sum p1 p0
+instance InjectAt (Here a) (N0 a) (N0 a) where injectAt _ = id
+instance InjectAt (Here a) (N1 a) (N1 a) where injectAt _ = id
+instance InjectAt (Here a) (N2 a) (N2 a) where injectAt _ = id
 instance InjectAt path a l => InjectAt (TurnLeft path) a (l :+: r) where
   injectAt _ = L . injectAt (Proxy :: Proxy path)
 instance InjectAt path a r => InjectAt (TurnRight path) a (l :+: r) where
@@ -85,8 +86,12 @@ instance InjectAt path a r => InjectAt (TurnRight path) a (l :+: r) where
 
 
 
-instance (Locate x sup ~ Just path, InjectAt path x sup) => Embed (N0 x) sup where
-  embed_ = injectAt (Proxy :: Proxy path) . unN0
+instance (Locate x sup ~ Just path, InjectAt path (N0 x) sup) => Embed (N0 x) sup where
+  embed_ = injectAt (Proxy :: Proxy path)
+instance (Locate x sup ~ Just path, InjectAt path (N1 x) sup) => Embed (N1 x) sup where
+  embed_ = injectAt (Proxy :: Proxy path)
+instance (Locate x sup ~ Just path, InjectAt path (N2 x) sup) => Embed (N2 x) sup where
+  embed_ = injectAt (Proxy :: Proxy path)
 instance (Embed l sup, Embed r sup) => Embed (l :+: r) sup where
   embed_ = foldPlus embed embed
 
@@ -97,6 +102,8 @@ instance (Embed l sup, Embed r sup) => Embed (l :+: r) sup where
 infixl 6 :-:
 type family (:-:) (sum :: * -> * -> *) (sum2 :: * -> * -> *) :: * -> * -> *
 type instance (:-:) (N0 x)    sum2 = If (Elem x sum2) Void (N0 x)
+type instance (:-:) (N1 x)    sum2 = If (Elem x sum2) Void (N1 x)
+type instance (:-:) (N2 x)    sum2 = If (Elem x sum2) Void (N2 x)
 type instance (:-:) (l :+: r) sum2 = Combine (l :-: sum2) (r :-: sum2)
 
 
@@ -105,17 +112,33 @@ type instance Combine Void x = x
 type instance Combine (N0 x) Void = N0 x
 type instance Combine (N0 x) (N0 y) = N0 x :+: N0 y
 type instance Combine (N0 x) (l :+: r) = N0 x :+: (l :+: r)
+type instance Combine (N1 x) Void = N1 x
+type instance Combine (N1 x) (N1 y) = N1 x :+: N1 y
+type instance Combine (N1 x) (l :+: r) = N1 x :+: (l :+: r)
+type instance Combine (N2 x) Void = N2 x
+type instance Combine (N2 x) (N2 y) = N2 x :+: N2 y
+type instance Combine (N2 x) (l :+: r) = N2 x :+: (l :+: r)
 type instance Combine (l :+: r) Void = l :+: r
 type instance Combine (l :+: r) (N0 y) = (l :+: r) :+: N0 y
+type instance Combine (l :+: r) (N1 y) = (l :+: r) :+: N1 y
+type instance Combine (l :+: r) (N2 y) = (l :+: r) :+: N2 y
 type instance Combine (ll :+: rl) (lr :+: rr) = (ll :+: rl) :+: (lr :+: rr)
 
 
 
 class Partition_N (bn :: Bool) x subL subR where
-  partition_N :: Proxy bn -> N0 x p1 p0 -> Either (subL p1 p0) (subR p1 p0)
+  partition_N :: Proxy bn -> x (p1 :: *) (p0 :: *) -> Either (subL p1 p0) (subR p1 p0)
 
-instance (Partition_N (Elem x subL) x subL subR
+instance (Partition_N (Elem x subL) (N0 x) subL subR
          ) => Partition (N0 x) subL subR where
+  partition_ = partition_N (Proxy :: Proxy (Elem x subL))
+
+instance (Partition_N (Elem x subL) (N1 x) subL subR
+         ) => Partition (N1 x) subL subR where
+  partition_ = partition_N (Proxy :: Proxy (Elem x subL))
+
+instance (Partition_N (Elem x subL) (N2 x) subL subR
+         ) => Partition (N2 x) subL subR where
   partition_ = partition_N (Proxy :: Proxy (Elem x subL))
 
 instance (Partition a subL subR, Partition b subL subR
@@ -124,7 +147,7 @@ instance (Partition a subL subR, Partition b subL subR
 
 
 
-instance Embed (N0 x) subR => Partition_N False x subL subR where
+instance Embed x subR => Partition_N False x subL subR where
   partition_N _ = Right . embed
-instance Embed (N0 x) subL => Partition_N True  x subL subR where
+instance Embed x subL => Partition_N True  x subL subR where
   partition_N _ = Left  . embed

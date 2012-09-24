@@ -28,6 +28,7 @@ module Data.Yoko.Representation
    -- ** Conversions to and from fields-of-products structure
    Rep, Generic0(..), Generic1(..), Generic2(..),
    -- ** Auxilliaries
+   unC, foldC, mapC,
    unN0, foldN0, mapN0,
    unN1, foldN1, mapN1,
    unN2, foldN2, mapN2,
@@ -140,6 +141,10 @@ unPar1 (Par1 x) = x
 mapPar1 f (Par1 x) = Par1 (f x)
 
 
+
+unC (C x) = x
+foldC f = f . unC
+mapC f = foldC (C . f)
 
 unN0 (N0 x) = x
 foldN0 f = f . unN0

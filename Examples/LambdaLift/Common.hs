@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell, DataKinds, TypeFamilies #-}
+
 {- |
 
 Module      :  LambdaLift.Common
@@ -14,4 +16,10 @@ An example lambba lifter using @hcompos@.
 
 module LambdaLift.Common where
 
+import Data.Yoko
+
+
+
 data Type = TyUnit | TyInt | TyFun Type Type deriving Show
+
+yokoTH ''Type

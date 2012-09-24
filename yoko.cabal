@@ -1,5 +1,5 @@
 name: yoko
-version: 0.9
+version: 2.0
 synopsis: Generic Programming with Disbanded Data Types
 
 description:
@@ -111,7 +111,11 @@ library
 
     Data.YokoRaw, Data.Yoko.HCompos, Data.Yoko.TH,
 
-    Data.Yoko.TypeBasics, Data.Yoko.Each
+    Data.Yoko.Invariant,
+
+    Data.Yoko.TypeBasics, Data.Yoko.Each,
+
+    Data.Yoko.Prelude
 
   other-modules:
     Data.Yoko.View,

@@ -3,8 +3,8 @@
 module Data.Yoko.Invariant
   (module Data.Yoko.Invariant, module Data.Functor.Invariant) where
 
-import Data.Yoko.Representation
-import Data.Yoko.View
+import Data.Yoko.Each
+import Data.YokoRaw
 
 import Data.Functor.Invariant
 
@@ -12,13 +12,13 @@ import Data.Functor.Invariant
 
 
 
-gen_invmap :: (Invariant2 (DCs t), DT1 t) =>
+gen_invmap :: (Invariant2 (DCs t), DT1 t, Each1 (ConDCOf1 t) (DCs t)) =>
               (a -> b) -> (b -> a) -> t a -> t b
-gen_invmap f f' = reband1 . invmap2 id id f f' . disband1
+gen_invmap f f' = band1 . invmap2 id id f f' . disband1
 
-gen_invmap2 :: (Invariant2 (DCs t), DT2 t) =>
+gen_invmap2 :: (Invariant2 (DCs t), DT2 t, Each2 (ConDCOf2 t) (DCs t)) =>
                (a -> c) -> (c -> a) -> (b -> d) -> (d -> b) -> t a b -> t c d
-gen_invmap2 f f' g g' = reband2 . invmap2 f f' g g' . disband2
+gen_invmap2 f f' g g' = band2 . invmap2 f f' g g' . disband2
 
 
 

@@ -80,8 +80,6 @@ import qualified Language.Haskell.TH.SCCs as SCCs
 import qualified Data.Yoko.TH.Internal as Int
 import Data.Yoko.TH.Internal (tvbName, peelApp, peelAppAcc, expandSyn)
 
-import Data.Functor.Invariant (invmap, invmap2)
-
 import qualified Control.Monad.Writer as Writer
 import qualified Control.Monad.Trans as Trans
 import Control.Monad (liftM, when, foldM)
@@ -376,7 +374,6 @@ yoko1 r@(convert -> X :&
         n' = rn n
     generate [Int.dataType2Dec n' $ Int.DataType tvbs $ Right [renameCon rn con]]
     (>>= generate) $ liftQ $ serializeTypeAsHash_data (mkG n')
-    (>>= generate) $ liftQ $ spineType_d_ (mkG n') $ map tvbKind tvbs
     fmap ((,) n)   $ liftQ $ conFields con
 
   let tvbSplits = [ List.splitAt k tvbs
@@ -386,7 +383,15 @@ yoko1 r@(convert -> X :&
   -- eg tvbs = [a]:     [   ([a]    , []),   ([]   , [a])                   ]
   -- eg tvbs = []:      [   ([]     , [])                                   ]
 
+  (>>= generate) $ liftQ $ spineType_d_ tyn $ map tvbKind tvbs
+  (>>= generate) $ liftQ $ serializeTypeAsHash_data tyn
+
   flip mapM_ tvbSplits $ \(tvbs, pars) ->
+    (flip mapM (either (:[]) id cons) $ \con -> do
+      let n = conName con
+          n' = rn n
+      ((>>= generate) $ liftQ $ spineType_d_ (mkG n') $ map tvbKind tvbs)) >>
+
     case filter ((/= StarT) . tvbKind) pars of
     offenders@(_:_) -> liftQ $ Int.thWarn $ "not representing " ++ nameBase tyn ++ " with " ++ msg (length pars) ++ " because [" ++ List.intercalate "," (map (nameBase . tvbName) offenders) ++ "] involves poly- or higher-kinds."
       where msg 1 = "1 parameter"
@@ -416,11 +421,10 @@ yoko1 r@(convert -> X :&
           TargetCxt  := cxt
 
 
-yoko2 activated r@(convert -> X :&
+yoko2 activated (convert -> X :&
   Renamer      := rn :&
   Mappings     := maps :&
   BindingGroup := bg :&
-  TargetData   := Int.DataType _ cons :&
   TargetType   := ty :&
   TargetPars   := pars :&
   TargetTVBs   := tvbs :&

@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies, TypeOperators, MultiParamTypeClasses,
   FlexibleContexts, FlexibleInstances, UndecidableInstances,
-  ScopedTypeVariables, DataKinds  #-}
+  ScopedTypeVariables, DataKinds, PolyKinds  #-}
 
 {-# OPTIONS_GHC -fcontext-stack=250 #-}
 
@@ -36,15 +36,15 @@ import Type.Digits (Digit)
 
 
 -- | The applicative functor required by the conversion.
-type family Idiom cnv :: * -> *
+type family Idiom (cnv :: *) :: * -> *
 
 -- | Use the conversion @cnv@ to convert from @a@ to @b@.
-class Applicative (Idiom cnv) => Convert cnv a b where
-  convert :: cnv -> a -> Idiom cnv b
+class Applicative (Idiom cnv) => Convert0 cnv a b where
+  convert0 :: cnv -> a -> Idiom cnv b
 
 -- | The generic version of @convert@; operates on /disbanded data types/.
-class Applicative (Idiom cnv) => HCompos cnv a t where
-  hcompos :: cnv -> a -> Idiom cnv t
+class Applicative (Idiom cnv) => HCompos0 cnv a t where
+  hcompos0 :: cnv -> a p1 p0 -> Idiom cnv t
 
 
 
@@ -52,45 +52,45 @@ class Applicative (Idiom cnv) => HCompos cnv a t where
 -- these two instances make functions work directly for singly-recursive data
 -- types
 type instance Idiom (a -> i b) = i
-instance (Applicative i, a ~ x, b ~ y) => Convert (a -> i b) x y where convert = ($)
+instance (Applicative i, a ~ x, b ~ y) => Convert0 (a -> i b) x y where convert0 = ($)
 
 
 
 
 
-data FoundDC star = NoCorrespondingConstructorFor_In_ star star | Match star
+data FoundDC (k :: *) (l :: *) = NoCorrespondingConstructorFor_In_ k k | Match l
 
-type family WithMessage (dcA :: *) (b :: *) (dcB :: Maybe *) :: FoundDC *
+type family WithMessage (dcA :: k) (b :: k) (dcB :: Maybe l) :: FoundDC k l
 type instance WithMessage dcA b (Just x) = Match x
 type instance WithMessage dcA b Nothing  = NoCorrespondingConstructorFor_In_ dcA b
 
 
 -- | @FindDCs dcA dcBs@ returns a type-level @Maybe@. @Just dcB@ is a fields
 -- type @dcB@ where @'Tag' dcA ~ dcB@.
-type family FindDCs (s :: Digit) (dcBs :: *) :: Maybe *
-type instance FindDCs s (N dc) =
-  If   (Equal s (Tag dc))   (Just dc)   Nothing
+type family FindDCs (s :: Digit) (dcBs :: * -> * -> *) :: Maybe (* -> * -> *)
+type instance FindDCs s (N0 dc) =
+  If   (Equal s (Tag dc))   (Just (N0 dc))   Nothing
 type instance FindDCs s (a :+: b) = DistMaybePlus (FindDCs s a) (FindDCs s b)
 
 
 
 
 
-instance (HCompos cnv a t, HCompos cnv b t
-         ) => HCompos cnv (a :+: b) t where
-  hcompos cnv = foldPlus (hcompos cnv) (hcompos cnv)
+instance (HCompos0 cnv a t, HCompos0 cnv b t
+         ) => HCompos0 cnv (a :+: b) t where
+  hcompos0 cnv = foldPlus (hcompos0 cnv) (hcompos0 cnv)
 
 -- NB only works if there's exactly one matching constructor
-instance (Generic dcA, Match dcB ~ WithMessage dcA b (FindDCs (Tag dcA) (DCs b)),
-          MapRs cnv (ResultsInIncompatibleFields dcA dcB) dcA dcB (Rep dcA) (Rep dcB),
-          DC dcB, Codomain dcB ~ b, DT b
-         ) => HCompos cnv (N dcA) b where
-  hcompos cnv =
-    foldN $ liftA (rejoin . (id :: dcB -> dcB) . obj) . mapRs cnv msgp p1 p2 . rep
+instance (Generic0 dcA, Match (N0 dcB) ~ WithMessage dcA b (FindDCs (Tag dcA) (DCs b)),
+          MapRs0 cnv (ResultsInIncompatibleFields dcA dcB) dcA dcB (Rep dcA) (Rep dcB),
+          DC0 dcB, Codomain dcB ~ b, DT0 b
+         ) => HCompos0 cnv (N0 dcA) b where
+  hcompos0 cnv =
+    foldN0 $ liftA (rejoin0 . (id :: dcB -> dcB) . obj0) . mapRs0 cnv msgp p1 p2 . rep0
     where p1 :: Proxy dcA; p1 = Proxy; p2 :: Proxy dcB; p2 = Proxy
           msgp = ResultsInIncompatibleFields :: ResultsInIncompatibleFields dcA dcB
 
-data ResultsInIncompatibleFields (dcA :: *) (dcB :: *) = ResultsInIncompatibleFields
+data ResultsInIncompatibleFields (dcA :: k) (dcB :: k) = ResultsInIncompatibleFields
 
 
 
@@ -100,25 +100,29 @@ data ResultsInIncompatibleFields (dcA :: *) (dcB :: *) = ResultsInIncompatibleFi
 
 -- | Same as @compos@ semantics, but with a generalized type and just for
 -- converting between product representations.
-class Applicative (Idiom cnv) => MapRs cnv msg dc dc' prod prod' where
-  mapRs :: cnv -> msg -> Proxy dc -> Proxy dc' -> prod -> Idiom cnv prod'
+class Applicative (Idiom cnv) => MapRs0 cnv msg dc dc' prod prod' where
+  mapRs0 :: cnv -> msg -> Proxy dc -> Proxy dc' -> prod p1 p0 -> Idiom cnv (prod' p1 p0)
 
-instance Convert cnv a b => MapRs cnv msg dc dc' (Rec a) (Rec b) where
-  mapRs cnv _ _ _ (Rec x) = Rec <$> convert cnv x
+instance Applicative (Idiom cnv) => MapRs0 cnv msg dc dc' U       U       where
+  mapRs0 _ _ _ _ = pure
 
-instance Applicative (Idiom cnv) => MapRs cnv msg dc dc' (Dep a) (Dep a) where
-  mapRs _ _ _ _ = pure
-instance Applicative (Idiom cnv) => MapRs cnv msg dc dc' U       U       where
-  mapRs _ _ _ _ = pure
+instance (MapRs0 cnv msg dc dc' a a', MapRs0 cnv msg dc dc' b b'
+         ) => MapRs0 cnv msg dc dc' (a :*: b) (a' :*: b') where
+  mapRs0 cnv msgp p1 p2 (a :*: b) = (:*:) <$> mapRs0 cnv msgp p1 p2 a <*> mapRs0 cnv msgp p1 p2 b
 
-instance (MapRs cnv msg dc dc' a a', MapRs cnv msg dc dc' b b'
-         ) => MapRs cnv msg dc dc' (a :*: b) (a' :*: b') where
-  mapRs cnv msgp p1 p2 (a :*: b) = (:*:) <$> mapRs cnv msgp p1 p2 a <*> mapRs cnv msgp p1 p2 b
+instance MapRs0 cnv msg dc dc' a a' => MapRs0 cnv msg dc dc' (C dcA a) (C dcB a') where
+  mapRs0 cnv msgp p1 p2 (C x) = C <$> mapRs0 cnv msgp p1 p2 x
 
-instance (Traversable f, MapRs cnv msg dc dc' a a'
-         ) => MapRs cnv msg dc dc' (Par1 f a) (Par1 f a') where
-  mapRs cnv msgp p1 p2 (Par1 x) = Par1 <$> traverse (mapRs cnv msgp p1 p2) x
+instance Convert0 cnv a b => MapRs0 cnv msg dc dc' (Rec0 lbl a) (Rec0 lbl' b) where
+  mapRs0 cnv _ _ _ (Rec0 x) = Rec0 <$> convert0 cnv x
 
-instance (Bitraversable f, MapRs cnv msg dc dc' a a', MapRs cnv msg dc dc' b b'
-         ) => MapRs cnv msg dc dc' (Par2 f a b) (Par2 f a' b') where
-  mapRs cnv msgp p1 p2 (Par2 x) = Par2 <$> bitraverse (mapRs cnv msgp p1 p2) (mapRs cnv msgp p1 p2) x
+instance Applicative (Idiom cnv) => MapRs0 cnv msg dc dc' (Dep0 a) (Dep0 a) where
+  mapRs0 _ _ _ _ = pure
+
+instance (Traversable f, MapRs0 cnv msg dc dc' a a'
+         ) => MapRs0 cnv msg dc dc' (Dep1 f a) (Dep1 f a') where
+  mapRs0 cnv msgp p1 p2 (Dep1 x) = Dep1 <$> traverse (mapRs0 cnv msgp p1 p2) x
+
+instance (Bitraversable f, MapRs0 cnv msg dc dc' a a', MapRs0 cnv msg dc dc' b b'
+         ) => MapRs0 cnv msg dc dc' (Dep2 f a b) (Dep2 f a' b') where
+  mapRs0 cnv msgp p1 p2 (Dep2 x) = Dep2 <$> bitraverse (mapRs0 cnv msgp p1 p2) (mapRs0 cnv msgp p1 p2) x

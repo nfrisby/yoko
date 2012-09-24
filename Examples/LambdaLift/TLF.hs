@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, TemplateHaskell, TypeOperators #-}
+{-# LANGUAGE TypeFamilies, TemplateHaskell, TypeOperators, DataKinds #-}
 
 {- |
 
@@ -34,7 +34,7 @@ data Prog = Prog [FunDec] TLF deriving Show
 
 
 
-concat `fmap` mapM yokoTH [''TLF]
+concat `fmap` mapM yokoTH [''Occ, ''TLF, ''Prog]
 
 {-
 data Top_ = Top_ Int [Occ]

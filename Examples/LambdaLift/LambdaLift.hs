@@ -28,7 +28,7 @@ import Data.Yoko.HCompos
 
 import LambdaLift.LLBasics
 import LambdaLift.FreeVars (freeVars)
-import LambdaLift.DeepSeq (DeepSeq(..))
+import LambdaLift.DeepSeq (DeepSeq0(..), rnf2)
 
 
 
@@ -42,12 +42,12 @@ lambdaLift e x = Prog ds tm where
 
 data Cnv = Cnv
 type instance Idiom Cnv = M
-instance Convert Cnv ULC TLF where convert Cnv = ll
+instance Convert0 Cnv ULC TLF where convert0 Cnv = ll
 
 
 
 ll :: ULC -> M TLF
-ll tm = precise_case tm llLam llVar llLet (Default $ hcompos Cnv)
+ll tm = precise_case tm llLam llVar llLet (Default $ hcompos0 Cnv)
 
 llLam lams@(Lam_ tyTop tmTop) = do
   -- get the body; count formals; determine captives
@@ -55,7 +55,7 @@ llLam lams@(Lam_ tyTop tmTop) = do
         peel (acc, ty') (Lam ty tm) = peel (ty' : acc, ty) tm
         peel acc tm = (acc, tm)
   let nLocals = 1 + length tys -- NB "1 +" is for ty
-  let captives = IS.toAscList $ freeVars $ rejoin lams
+  let captives = IS.toAscList $ freeVars $ rejoin0 lams
       captives' = reverse captives
 
   (rho, rn) <- ask
@@ -117,12 +117,12 @@ ex5' = lambdaLift [TyUnit] ex5
 
 
 
-instance DeepSeq Type where rnf = (`seq` ())
-instance DeepSeq Occ  where
-  rnf (Par x) = rnf x
-  rnf (Env x) = rnf x
-instance DeepSeq Prog where rnf (Prog decs tm) = rnf decs `seq` rnf tm
-instance DeepSeq TLF  where rnf = rnf . reps . disband
+instance DeepSeq0 Type where rnf0 = (`seq` ())
+instance DeepSeq0 Occ  where
+  rnf0 (Par x) = rnf0 x
+  rnf0 (Env x) = rnf0 x
+instance DeepSeq0 Prog where rnf0 (Prog decs tm) = rnf0 decs `seq` rnf0 tm
+instance DeepSeq0 TLF  where rnf0 = rnf2 . ig_from
 
 
 
@@ -130,4 +130,4 @@ instance DeepSeq TLF  where rnf = rnf . reps . disband
 -- this should evaluate without an exception if things are working; NB doesn't
 -- actually test correctness -- currently asking you to do that by
 -- investigating the value of each lambda-lifted term
-all_exs = rnf [ex0', ex1', ex2', ex3', ex4', ex5']
+all_exs = rnf0 [ex0', ex1', ex2', ex3', ex4', ex5']
