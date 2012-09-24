@@ -84,7 +84,7 @@ import Data.Functor.Invariant (invmap, invmap2)
 
 import qualified Control.Monad.Writer as Writer
 import qualified Control.Monad.Trans as Trans
-import Control.Monad (liftM, when)
+import Control.Monad (liftM, when, foldM)
 
 import qualified Control.Arrow as Arrow
 
@@ -93,6 +93,8 @@ import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.List as List
+
+import Data.Maybe (catMaybes)
 
 import Data.Kind (KindStar(..))
 import Data.TypeFun
@@ -111,6 +113,7 @@ data Target   = Target   deriving Show
 data Renamer  = Renamer  deriving Show
 data Mappings = Mappings deriving Show
 data InvInsts = InvInsts deriving Show
+data DCInsts = DCInsts deriving Show
 data BindingGroup = BindingGroup deriving Show
 data TargetData   = TargetData   deriving Show
 data TargetType   = TargetType   deriving Show
@@ -123,6 +126,7 @@ instance R.Name Target   where name = Target
 instance R.Name Renamer  where name = Renamer
 instance R.Name Mappings where name = Mappings
 instance R.Name InvInsts where name = InvInsts
+instance R.Name DCInsts  where name = DCInsts
 instance R.Name BindingGroup where name = BindingGroup
 instance R.Name TargetData   where name = TargetData
 instance R.Name TargetType   where name = TargetType
@@ -150,11 +154,14 @@ data YokoOptions = YokoOptions
    mappings :: [(Int, Mapping)] -> [(Int, Mapping)],
     -- | Should instances of 'Invariant' also be automatically derived for this
     -- type? Defaults to @True@.
-   invInsts :: Bool -> Bool }
+   invInsts :: Bool -> Bool,
+    -- | For which constructors should instances of 'Rep' and 'Generic' be
+    -- automatically derived? Defaults to the set of all constructors.
+   dcInsts :: [Name] -> [Name]}
 
 -- | The default options. @yokoDefaults = YokoOptions id id id@.
 yokoDefaults :: YokoOptions
-yokoDefaults = YokoOptions id id id
+yokoDefaults = YokoOptions id id id id
 
 type M r = Writer.WriterT [Dec] Q
 
@@ -185,16 +192,25 @@ yokoTH_with options n = runM $ yoko0 $ X :&
          :& Mappings := mappings options [(1, Mapping ''Dep1 'Dep1 'invmap),
                                           (2, Mapping ''Dep2 'Dep2 'invmap2)]
          :& InvInsts := invInsts options True
+         :& DCInsts := dcInsts options
 
 
 
 
 -- gather reflective information about the target type
 yoko0 r@(convert -> X :& Target := n) = do
-  scc    <- liftQ $ SCCs.scc n
   datatype <- liftQ $ Int.dataType n
 
-  yoko1 $ r :& BindingGroup := fmap (\x -> Map.fromList (zip (Set.toAscList x) [0..])) scc :& TargetData := datatype
+  scc      <- do
+    scc <- liftQ $ SCCs.scc n
+    case scc of
+      Left n   -> return $ Left n
+      Right ns -> fmap (Right . fst) $ foldM snoc (Map.empty, 0) $ Set.toAscList ns
+        where snoc (m, acc) n = liftQ (reify n) >>= return . \case
+                TyConI TySynD{} -> (Map.insert n Nothing    m, acc)
+                _               -> (Map.insert n (Just acc) m, acc + 1)
+
+  yoko1 $ r :& TargetData := datatype :& BindingGroup := scc
 
 -- generate fields types
 conName :: Con -> Name
@@ -259,7 +275,7 @@ namesIn (VarT n) = Set.singleton n
 namesIn (ConT n) = Set.singleton n
 namesIn _ = Set.empty
 
-fieldRO :: [(Int, Mapping)] -> Either Name (Map Name Int) ->
+fieldRO :: [(Int, Mapping)] -> Either Name (Map Name (Maybe Int)) ->
            [Name] -> -- just the represented parameters (ie Par1 and Par0)
            Type -> Q (Type, FieldRO)
 fieldRO maps bg parNs = w' where
@@ -298,9 +314,11 @@ fieldRO maps bg parNs = w' where
         in (ConT tyn, FieldRO (ConE ctor) (VarE dtor))
       else Int.thFail $ "no support for poly- or higher-kinded parameters."
 
-    ConT n | Just lbl <- case bg of Left _ -> Nothing; Right bg -> Map.lookup n bg -> expandSyn ty tys >>= \case
-      Just (ty, tys) -> w ty tys
-      Nothing        -> appliedRec lbl container tys'
+    ConT n | Just lbl <- case bg of Left _ -> Nothing; Right bg -> Map.lookup n bg -> case lbl of
+      Nothing -> expandSyn ty tys >>= \case
+        Just (ty, tys) -> w ty tys
+        Nothing -> Int.thFail "impossible: expandSyn is guarded by yoko0."
+      Just lbl -> appliedRec lbl container tys'
         where (foldl AppT ty -> container, tys') =
                 List.splitAt (length tys - length parNs) tys
 
@@ -340,8 +358,11 @@ yoko1 r@(convert -> X :&
   Target       := tyn :&
   Renamer      := rn :&
   Mappings     := maps :&
-  TargetData   := Int.DataType tvbs cons
+  TargetData   := Int.DataType tvbs cons :&
+  DCInsts      := dcInsts
         ) = do
+  let activated = dcInsts $ either ((:[]) . conName) (map conName) cons
+
   -- make a name into a NameG for a type in the current module; NB the fields
   -- types need not be declared in the same module as the target type
   loc <- liftQ TH.location
@@ -379,7 +400,7 @@ yoko1 r@(convert -> X :&
 
       -- for every fields type, generate the fields types instances
       flip mapM_ nAndFieldss $ \(n, fields) -> do
-        yoko2 $ r :&
+        yoko2 (n `elem` activated) $ r :&
           TargetTVBs := tvbs :&
           TargetPars := pars :&
           TargetType := applyConT2TVBs tyn tvbs :&
@@ -387,6 +408,7 @@ yoko1 r@(convert -> X :&
           ConName    := n :&
           ConFields  := fields
 
+      -- generate the DCs, DTs, DT instances
       yoko3 $ r :&
           TargetTVBs := tvbs :&
           TargetPars := pars :&
@@ -394,7 +416,7 @@ yoko1 r@(convert -> X :&
           TargetCxt  := cxt
 
 
-yoko2 r@(convert -> X :&
+yoko2 activated r@(convert -> X :&
   Renamer      := rn :&
   Mappings     := maps :&
   BindingGroup := bg :&
@@ -419,46 +441,45 @@ yoko2 r@(convert -> X :&
   let n' = rn n   ;   fd = applyConT2TVBs n' tvbs
 
   -- declare the fields type's Codomain/Tag/DC instances
-  let yokoD =
-        [TySynInstD ''Codomain [fd] ty,
-         TySynInstD ''Tag   [fd] $ encode $ TH.nameBase n,
-         InstanceD cxt (ConT nDC `AppT` fd)
-           [let (pat, exp) = pat_exp n' n $ length fields
-            in FunD nRejoin [simpleClause [pat] exp]]
-        ]
+  generate
+    [TySynInstD ''Codomain [fd] ty,
+     TySynInstD ''Tag   [fd] $ encode $ TH.nameBase n,
+     InstanceD cxt (ConT nDC `AppT` fd)
+       [let (pat, exp) = pat_exp n' n $ length fields
+        in FunD nRejoin [simpleClause [pat] exp]]
+    ]
 
   -- declare the Rep and Generic RHSs
-  (repTy, (conRO, _)) <- liftQ $ Arrow.second ($ 0) `fmap` halves fields
-        (return (ConT ''U, \s ->
-                 (ConRO {repP = [], repE = ConE 'U,
-                         objP = WildP, objE = []}, s)))
+  when activated $ (>>= generate) $ do
+    (repTy, (conRO, _)) <- liftQ $ Arrow.second ($ 0) `fmap` halves fields
+      (return (ConT ''U, \s ->
+               (ConRO {repP = [], repE = ConE 'U,
+                       objP = WildP, objE = []}, s)))
 
-        (\l r -> l >>= \(tyL, roL) -> r >>= \(tyR, roR) -> return $
-          (ConT ''(:*:) `AppT` tyL `AppT` tyR,
-           \s -> case roL s of
-             (roL, s) -> case roR s of
-               (roR, s) ->
-                 (ConRO {repP = repP roL ++ repP roR,
-                         repE = ConE '(:*:) `AppE` repE roL `AppE` repE roR,
-                         objP = ConP '(:*:) [objP roL, objP roR],
-                         objE = objE roL ++ objE roR}, s)))
+      (\l r -> l >>= \(tyL, roL) -> r >>= \(tyR, roR) -> return $
+       (ConT ''(:*:) `AppT` tyL `AppT` tyR,
+        \s -> case roL s of
+          (roL, s) -> case roR s of
+            (roR, s) ->
+              (ConRO {repP = repP roL ++ repP roR,
+                      repE = ConE '(:*:) `AppE` repE roL `AppE` repE roR,
+                      objP = ConP '(:*:) [objP roL, objP roR],
+                      objE = objE roL ++ objE roR}, s)))
 
-        (\(_, ty) ->
-           let post fRO s =
-                 (ConRO {repP = [VarP n], repE = repF fRO `AppE` VarE n,
-                         objP = VarP n, objE = [objF fRO `AppE` VarE n]},
-                  s + 1)
-                 where n = mkName $ "x" ++ show s
-           in Arrow.second post `fmap`
-              fieldRO maps bg (map tvbName pars) ty)
+      (\(_, ty) ->
+         let post fRO s =
+               (ConRO {repP = [VarP n], repE = repF fRO `AppE` VarE n,
+                       objP = VarP n, objE = [objF fRO `AppE` VarE n]},
+                s + 1)
+               where n = mkName $ "x" ++ show s
+         in Arrow.second post `fmap`
+            fieldRO maps bg (map tvbName pars) ty)
 
-  let genD = TySynInstD ''Rep [fd] (ConT ''C `AppT` fd `AppT` repTy) :
-             [ InstanceD cxt (ConT nGeneric `AppT` fd)
-               [FunD nRep [simpleClause [ConP n' (repP conRO)] $ ConE 'C `AppE` repE conRO],
-                FunD nObj [simpleClause [ConP 'C [objP conRO]] $
-                            foldl AppE (ConE n') $ objE conRO]]]
-
-  generate $ yokoD ++ genD
+    return
+      [ TySynInstD ''Rep [fd] (ConT ''C `AppT` fd `AppT` repTy),
+        InstanceD cxt (ConT nGeneric `AppT` fd)
+        [FunD nRep [simpleClause [ConP n' (repP conRO)] $ ConE 'C `AppE` repE conRO],
+         FunD nObj [simpleClause [ConP 'C [objP conRO]] $ foldl AppE (ConE n') $ objE conRO]]]
 
 -- generate DCs/DT instances
 yoko3 r@(convert -> X :&
@@ -505,10 +526,16 @@ yoko3 r@(convert -> X :&
   when invInsts $ flip (maybe (return ())) invInst $ \(cls, method, rhs) ->
     generate [InstanceD cxt (ConT cls `AppT` ty) [ValD (VarP method) (NormalB (VarE rhs)) []]]
 
-  generate $ let rhs = case fmap (Set.toAscList . Map.keysSet) bg of
-                   Left  _  -> PromotedT 'NonRecDT
-                   Right ts -> PromotedT 'RecDT `AppT` promo l `AppT` promo r
-                     where (l, _:r) = List.break (== tyn) ts
-                           promo = foldr cons PromotedNilT where
-                             cons n sofar = PromotedConsT `AppT` foldl AppT (ConT n) (map (VarT . tvbName) tvbs) `AppT` sofar
-             in [TySynInstD ''DTs [ty] rhs]
+  (>>= generate) $ do
+    rhs <- case fmap (Set.toAscList . Map.keysSet) bg of
+      Left  _  -> return $ PromotedT 'NonRecDT
+      Right ns -> do
+        -- filter out the type synonyms
+        ns <- fmap catMaybes $ flip mapM ns $ \n -> liftQ (reify n) >>= \case
+          TyConI TySynD{} -> return Nothing
+          _               -> return $ Just n
+        let (l, _:r) = List.break (== tyn) ns
+            promo = foldr cons PromotedNilT where
+              cons n sofar = PromotedConsT `AppT` foldl AppT (ConT n) (map (VarT . tvbName) tvbs) `AppT` sofar
+        return $ PromotedT 'RecDT `AppT` promo l `AppT` promo r
+    return [TySynInstD ''DTs [ty] rhs]

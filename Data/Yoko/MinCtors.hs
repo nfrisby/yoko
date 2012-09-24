@@ -18,6 +18,9 @@ import Data.Yoko.MinCtors.Minima
 
 import Data.Monoid (mappend)
 
+import qualified GHC.Word
+import qualified GHC.Real
+
 import Data.Yoko.TH
 
 --------------------
@@ -221,10 +224,12 @@ class MinCtors t where
   default minCtors :: MinCtorsWorker t (DTs t) => Proxy t -> Minima1
   minCtors = gen_minCtors
 
-instance MinCtors Int    where minCtors _ = oneCtor
-instance MinCtors Char   where minCtors _ = oneCtor
-instance MinCtors Float  where minCtors _ = oneCtor
-instance MinCtors Double where minCtors _ = oneCtor
+instance MinCtors Int     where minCtors _ = oneCtor
+instance MinCtors Integer where minCtors _ = oneCtor
+instance MinCtors Char    where minCtors _ = oneCtor
+instance MinCtors Float   where minCtors _ = oneCtor
+instance MinCtors Double  where minCtors _ = oneCtor
+instance MinCtors GHC.Word.Word8    where minCtors _ = oneCtor
 
 class MinCtorsWorker t dpos where method :: Proxy t -> Proxy dpos -> Minima1
 
@@ -314,6 +319,8 @@ yokoTH ''Y
 
 yokoTH ''Bool
 
+yokoTH ''GHC.Real.Ratio
+
 yokoTH ''()
 
 type instance DTs (,,) = NonRecDT
@@ -394,6 +401,8 @@ instance MinCtors a => MinCtors (Odd  a)
 --------------------
 -- usages
 instance MinCtors Bool
+instance MinCtors GHC.Real.Ratio
+instance MinCtors a => MinCtors (GHC.Real.Ratio a)
 instance MinCtors ()
 
 
@@ -402,6 +411,8 @@ instance MinCtors a => MinCtors ((,) a)
 instance (MinCtors a, MinCtors b) => MinCtors ((,) a b)
 
 instance MinCtors a => MinCtors ((,,) a)
+instance (MinCtors a, MinCtors b) => MinCtors ((,,) a b)
+instance (MinCtors a, MinCtors b, MinCtors c) => MinCtors ((,,) a b c)
 
 instance MinCtors Maybe
 instance MinCtors a => MinCtors (Maybe a)

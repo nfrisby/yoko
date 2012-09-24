@@ -1,0 +1,32 @@
+Q1: Why can't we just enumerate and then count the smallest?
+
+A: There's no guarantee that the result of enum is in ascending
+order.
+
+Q2: Just search the enumeration of values for one with a minimum # of
+constructors?
+
+A: It could be a huge list (ie inefficency), possibly even infinite (ie
+divergence).
+
+Q3: Search just the first N elements and hope the result is an accurate
+approximation?
+
+(... Can we can choose K based on quick analysis of the data type, like the #
+of constructors? Is that basically begging the question?)
+
+A: Two issues. 1) That is obviously unsound, but probably still practically
+useful. 2) It would diverge when applied to codata.
+
+
+
+
+
+GHC correctly memoizes the results of the minCtors analysis for each type (ie,
+it lifts it out of the pervasive "Proxy ... ->"), but it does not share the
+sibling set solution across the siblings' instances.
+
+  1) I arrived at this conclusion via inspecting suppress-all'd core. Can I
+  show it empirically?
+
+  2) How to induce that sharing, preferably without requiring more of the user?
