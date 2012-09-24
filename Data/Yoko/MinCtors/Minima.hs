@@ -2,9 +2,9 @@
   TypeFamilies, UndecidableInstances, FlexibleInstances, FlexibleContexts #-}
 
 module Data.Yoko.MinCtors.Minima
-  (NCtor, NRec, NP1, NP0, Minima1, Minima0, Minimum,
+  (NCtor, NRec, NP1, NP0, Minima2, Minima1, Minimum,
    DTsCVec, SumInfo, SC_SumInfo,
-   SiblingInT, SiblingInC, addMinima1, addSiblingInTs,
+   SiblingInT, SiblingInC, addMinima2, addSiblingInTs,
    solve_sibling_set, solve_sibling_set',
    plug10, plug0, plug10', plug0') where
 
@@ -35,17 +35,17 @@ type NRec  = Int
 type NP1   = Int
 type NP0   = Int
 
-type Minima1 = MMap (NP1, NP0) Min NCtor
-type Minima0 = MMap NP0        Min NCtor
+type Minima2 = MMap (NP1, NP0) Min NCtor
+type Minima1 = MMap NP0        Min NCtor
 type Minimum = MMap ()         Min NCtor
 
 -- scale each coordinate
-scale :: Int -> Minima1 -> Minima1
+scale :: Int -> Minima2 -> Minima2
 scale i = MMap.mapWithMonoKeys (\(np1, np0) -> (i * np1, i * np0)) (fmap (i *))
 
 -- take Cartesian product, add coordinates point-wise, and re\"normalize\"
-addMinima1 :: Minima1 -> Minima1 -> Minima1
-addMinima1 m m' = flip MMap.foldMap m $ \(np1, np0) (Min k) ->
+addMinima2 :: Minima2 -> Minima2 -> Minima2
+addMinima2 m m' = flip MMap.foldMap m $ \(np1, np0) (Min k) ->
   flip MMap.foldMap m' $ \(np1', np0') (Min k') ->
     MMap.singleton (np1 + np1', np0 + np0') (Min $ k + k')
 
@@ -83,12 +83,12 @@ data SC_SumInfo t = SC_SumInfo
 type instance App SC_SumInfo t = SumInfo t
 
 solve_sibling_set ::
-  (Eq (CVec ts Minima1), VRepeat ts,
+  (Eq (CVec ts Minima2), VRepeat ts,
    VFunctor (SiblingInC ts) ts, VEnum ts) => Vec ts SC_SumInfo -> Work ts
 solve_sibling_set = solve_sibling_set' . homogenize
 
 solve_sibling_set' ::
-  (Eq (CVec ts Minima1), VRepeat ts, VEnum ts) => CVec ts (SiblingInT ts) -> Work ts
+  (Eq (CVec ts Minima2), VRepeat ts, VEnum ts) => CVec ts (SiblingInT ts) -> Work ts
 solve_sibling_set' table = chaotic (step table) $ initialize table
 
 -- 1) start with the smallest non-recursive ctors
@@ -100,7 +100,7 @@ solve_sibling_set' table = chaotic (step table) $ initialize table
 
 -- the work set holds the sofar determined answers -- only the ones that are
 -- gauranteed to be minimal. Codata siblings never get changed from MMap.empty.
-type Work ts = CVec ts Minima1
+type Work ts = CVec ts Minima2
 
 -- like SC_SumInfo except parameterized over the sibling set instead of just a
 -- single sibling
@@ -133,7 +133,7 @@ step table sofar = cvZipWith leftbias sofar $ flip fmap table $
                in if MMap.null answer then Nothing -- fail
                   else Just $ Just $ scale times answer -- emit
     in ($ all_answered) $ maybe MMap.empty $
-         foldl addMinima1 (MMap.singleton (np1, np0) k) . catMaybes . cvec2list
+         foldl addMinima2 (MMap.singleton (np1, np0) k) . catMaybes . cvec2list
 
 leftbias m1 m2 = if MMap.null m1 then m2 else m1
 
@@ -148,18 +148,18 @@ chaotic f = w where w x = let x' = f x in if x == x' then x else w x'
 --------------------
 -- combining minima
 
-plug0 :: Ord (CVec ts NRec) => Minima1 -> SiblingInT ts -> SiblingInT ts
+plug0 :: Ord (CVec ts NRec) => Minima2 -> SiblingInT ts -> SiblingInT ts
 plug0 f s0 = flip MMap.foldMap f $ \(_, np0) (Min k) ->
   MMap.map (fmap (+k)) $ scaleSiblingInTs np0 s0
 
-plug10 :: Ord (CVec ts NRec) => Minima1 -> SiblingInT ts -> SiblingInT ts -> SiblingInT ts
+plug10 :: Ord (CVec ts NRec) => Minima2 -> SiblingInT ts -> SiblingInT ts -> SiblingInT ts
 plug10 f s1 s0 = flip MMap.foldMap f $ \(np1, np0) (Min k) ->
   MMap.map (fmap (+k)) $ scaleSiblingInTs np1 s1 `addSiblingInTs` scaleSiblingInTs np0 s0
 
-plug0' :: Minima1 -> Minima1 -> Minima1
+plug0' :: Minima2 -> Minima2 -> Minima2
 plug0' f s0 = flip MMap.foldMap f $ \(_, np0) (Min k) ->
   MMap.map (fmap (+k)) $ scale np0 s0
 
-plug10' :: Minima1 -> Minima1 -> Minima1 -> Minima1
+plug10' :: Minima2 -> Minima2 -> Minima2 -> Minima2
 plug10' f s1 s0 = flip MMap.foldMap f $ \(np1, np0) (Min k) ->
-  MMap.map (fmap (+k)) $ scale np1 s1 `addMinima1` scale np0 s0
+  MMap.map (fmap (+k)) $ scale np1 s1 `addMinima2` scale np0 s0

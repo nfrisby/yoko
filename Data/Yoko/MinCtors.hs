@@ -2,11 +2,7 @@
   DefaultSignatures, ViewPatterns, FlexibleContexts, FlexibleInstances,
   PolyKinds, MultiParamTypeClasses, Rank2Types #-}
 
-{-# LANGUAGE TemplateHaskell #-}
-
--- {-# OPTIONS_GHC -ddump-splices #-}
-
-module Data.Yoko.MinCtors where -- (MinCtors(..), gen_minCtors) where
+module Data.Yoko.MinCtors (MinCtors(..), gen_minCtors, nCtors) where
 
 import Data.Yoko
 
@@ -15,6 +11,7 @@ import qualified Data.Yoko.MinCtors.MMap as MMap
 import Data.Yoko.MinCtors.Minima
 
 import qualified GHC.Word
+import qualified GHC.ForeignPtr
 
 import Data.Monoid (mappend)
 
@@ -46,17 +43,17 @@ pRep _ = Proxy
 class MinInfoRec (t :: k) (ts :: [k1]) where
   minInfoRec :: Proxy t -> Proxy ts -> SiblingInT ts
 
-class MinInfoNonRec (t :: k) where minInfoNonRec :: Proxy t -> Minima1
+class MinInfoNonRec (t :: k) where minInfoNonRec :: Proxy t -> Minima2
 
-minima1ToSiblingInT :: VRepeat ts => Minima1 -> SiblingInT ts
+minima1ToSiblingInT :: VRepeat ts => Minima2 -> SiblingInT ts
 minima1ToSiblingInT =
   MMap.mapWithMonoKeys (\(np1, np0) -> (cvRepeat 0, np1, np0)) id
 
-void :: Minima1
+void :: Minima2
 void = MMap.singleton (0, 0) $ Min 0
 
-oneCtor :: Minima1
-oneCtor = MMap.singleton (0, 0) $ Min 1
+nCtors :: Int -> Proxy t -> Minima2
+nCtors n _ = MMap.singleton (0, 0) $ Min n
 
 
 
@@ -86,7 +83,7 @@ instance (MinCtors ff, MinInfoNonRec rB, MinInfoNonRec rA) => MinInfoNonRec (Dep
 
 
 instance (VRepeat ts) => MinInfoRec (Void t) ts where minInfoRec _ _ = minima1ToSiblingInT void
-instance MinInfoNonRec (Void t) where minInfoNonRec _ = void
+instance MinInfoNonRec (Void t) where minInfoNonRec = nCtors 0
 
 
 
@@ -138,7 +135,7 @@ instance (MinInfoNonRec l, MinInfoNonRec r) => MinInfoNonRec (l :+: r) where
 
 
 
-instance MinInfoNonRec U where minInfoNonRec _ = void
+instance MinInfoNonRec U where minInfoNonRec = nCtors 0
 instance (VRepeat ts) => MinInfoRec U ts where minInfoRec _ _ = minima1ToSiblingInT void
 
 deTimes :: Proxy (l :*: r) -> (Proxy l, Proxy r)
@@ -148,7 +145,7 @@ instance (Ord (CVec ts NRec), VRepeat ts, MinInfoRec l ts, MinInfoRec r ts) => M
   minInfoRec (deTimes -> (l, r)) pts =
     addSiblingInTs (minInfoRec l pts) (minInfoRec r pts)
 instance (MinInfoNonRec l, MinInfoNonRec r) => MinInfoNonRec (l :*: r) where
-  minInfoNonRec (deTimes -> (l, r)) = addMinima1 (minInfoNonRec l) (minInfoNonRec r)
+  minInfoNonRec (deTimes -> (l, r)) = addMinima2 (minInfoNonRec l) (minInfoNonRec r)
 
 
 
@@ -211,22 +208,23 @@ instance MinCtors t => MinInfoNonRec (Dep0 t) where minInfoNonRec = minCtors . d
 pDTs :: Proxy t -> Proxy (DTs t)
 pDTs _ = Proxy
 
-gen_minCtors :: MinCtorsWorker t (DTs t) => Proxy t -> Minima1
+gen_minCtors :: MinCtorsWorker t (DTs t) => Proxy t -> Minima2
 gen_minCtors p = method p (pDTs p)
 
 class MinCtors t where
-  minCtors :: Proxy t -> Minima1
-  default minCtors :: MinCtorsWorker t (DTs t) => Proxy t -> Minima1
+  minCtors :: Proxy t -> Minima2
+  default minCtors :: MinCtorsWorker t (DTs t) => Proxy t -> Minima2
   minCtors = gen_minCtors
 
-instance MinCtors Int     where minCtors _ = oneCtor
-instance MinCtors Integer where minCtors _ = oneCtor
-instance MinCtors Char    where minCtors _ = oneCtor
-instance MinCtors Float   where minCtors _ = oneCtor
-instance MinCtors Double  where minCtors _ = oneCtor
-instance MinCtors GHC.Word.Word8    where minCtors _ = oneCtor
+instance MinCtors Int     where minCtors = nCtors 1
+instance MinCtors Integer where minCtors = nCtors 1
+instance MinCtors Char    where minCtors = nCtors 1
+instance MinCtors Float   where minCtors = nCtors 1
+instance MinCtors Double  where minCtors = nCtors 1
+instance MinCtors GHC.Word.Word8 where minCtors = nCtors 1
+instance MinCtors GHC.ForeignPtr.ForeignPtr where minCtors = nCtors 1
 
-class MinCtorsWorker t dpos where method :: Proxy t -> Proxy dpos -> Minima1
+class MinCtorsWorker t dpos where method :: Proxy t -> Proxy dpos -> Minima2
 
 pSiblingDTs :: Proxy t -> Proxy (SiblingDTs t)
 pSiblingDTs _ = Proxy
@@ -241,7 +239,7 @@ instance (IndexInto (Length l) (SiblingDTs t),
           VFunctor (SiblingInC (SiblingDTs t)) (SiblingDTs t),
           VRepeat (SiblingDTs t),
           VEnum (SiblingDTs t),
-          Eq (CVec (SiblingDTs t) Minima1),
+          Eq (CVec (SiblingDTs t) Minima2),
           MinInfoRec (DCs t) (SiblingDTs t)) => MinCtorsWorker t (RecDT l r) where
   method pt pdpos = (`cvAt` indexInto (pIndex pdpos) psibs) $ solve_sibling_set' $
                     cvInitialize (pcon psibs) minInfo__
@@ -263,7 +261,7 @@ minInfo__ p = minInfoRec (pDisband p) (pSiblingDTs p)
 
 
 
-
+{-
 
 -- T tests support for interesting structures as well as avoiding the recursive
 -- branch
@@ -343,8 +341,9 @@ instance MinCtors S
 instance MinCtors a => MinCtors (S a)
 instance MinCtors M1
 instance MinCtors M2
-instance MinCtors Nat
 instance MinCtors Inf
+
+instance MinCtors Nat
 
 
 instance MinCtors Even
@@ -352,13 +351,16 @@ instance MinCtors Odd
 instance MinCtors a => MinCtors (Even a)
 instance MinCtors a => MinCtors (Odd  a)
 
+-}
+
+
+
+
+
 --------------------
 -- usages
 instance MinCtors Bool
-instance MinCtors GHC.Real.Ratio
-instance MinCtors a => MinCtors (GHC.Real.Ratio a)
 instance MinCtors ()
-
 
 instance MinCtors (,)
 instance MinCtors a => MinCtors ((,) a)
