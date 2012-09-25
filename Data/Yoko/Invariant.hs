@@ -3,7 +3,7 @@
 module Data.Yoko.Invariant
   (module Data.Yoko.Invariant, module Data.Functor.Invariant) where
 
-import Data.Yoko.Each
+import Data.Yoko.W
 import Data.YokoRaw
 
 import Data.Functor.Invariant
@@ -12,13 +12,13 @@ import Data.Functor.Invariant
 
 
 
-gen_invmap :: (Invariant2 (DCs t), DT1 t, Each1 (ConDCOf1 t) (DCs t)) =>
+gen_invmap :: (Invariant2 (DCs t), DT t, AreDCsOf t (DCs t)) =>
               (a -> b) -> (b -> a) -> t a -> t b
-gen_invmap f f' = band1 . invmap2 id id f f' . disband1
+gen_invmap f f' = unW'1 band . invmap2 id id f f' . unW1 disband
 
-gen_invmap2 :: (Invariant2 (DCs t), DT2 t, Each2 (ConDCOf2 t) (DCs t)) =>
+gen_invmap2 :: (Invariant2 (DCs t), DT t, AreDCsOf t (DCs t)) =>
                (a -> c) -> (c -> a) -> (b -> d) -> (d -> b) -> t a b -> t c d
-gen_invmap2 f f' g g' = band2 . invmap2 f f' g g' . disband2
+gen_invmap2 f f' g g' = unW'2 band . invmap2 f f' g g' . unW2 disband
 
 
 
@@ -38,11 +38,11 @@ instance (Invariant2 r) => Invariant2 (C dc r) where
 instance Invariant2 (N0 dc) where
   invmap2 _ _ _ _ (N0 x) = N0 x
 
-instance (Invariant2 (Rep dc), Generic1 dc) => Invariant2 (N1 dc) where
-  invmap2 _ _ g g' (N1 x) = N1 $ obj1 $ invmap2 id id g g' $ rep1 x
+instance (Invariant2 (Rep dc), Generic dc) => Invariant2 (N1 dc) where
+  invmap2 _ _ g g' (N1 x) = N1 $ (\(W'1 f) -> f) obj $ invmap2 id id g g' $ (\(W1 f) -> f) rep x
 
-instance (Invariant2 (Rep dc), Generic2 dc) => Invariant2 (N2 dc) where
-  invmap2 f f' g g' (N2 x) = N2 $ obj2 $ invmap2 f f' g g' $ rep2 x
+instance (Invariant2 (Rep dc), Generic dc) => Invariant2 (N2 dc) where
+  invmap2 f f' g g' (N2 x) = N2 $ (\(W'2 f) -> f) obj $ invmap2 f f' g g' $ (\(W2 f) -> f) rep x
 
 instance (Invariant2 l, Invariant2 r) => Invariant2 (l :+: r) where
   invmap2 f f' g g' = \case

@@ -38,7 +38,7 @@ data types. Yell loudly if you need that... then send me an email :) HTH!
 module Data.Yoko
   (module Data.YokoRaw, module Data.Yoko.SmartPreciseCase, module Data.Yoko.TH) where
 
-import Data.YokoRaw hiding (precise_case)
+import Data.YokoRaw hiding (precise_case0)
 import Data.Yoko.SmartPreciseCase
 import Data.Yoko.TH
 

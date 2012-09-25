@@ -47,7 +47,7 @@ instance Convert0 Cnv ULC TLF where convert0 Cnv = ll
 
 
 ll :: ULC -> M TLF
-ll tm = precise_case tm llLam llVar llLet (Default $ hcompos0 Cnv)
+ll tm = precise_case0 tm llLam llVar llLet (Default $ hcompos0 Cnv)
 
 llLam lams@(Lam_ tyTop tmTop) = do
   -- get the body; count formals; determine captives
@@ -55,7 +55,7 @@ llLam lams@(Lam_ tyTop tmTop) = do
         peel (acc, ty') (Lam ty tm) = peel (ty' : acc, ty) tm
         peel acc tm = (acc, tm)
   let nLocals = 1 + length tys -- NB "1 +" is for ty
-  let captives = IS.toAscList $ freeVars $ rejoin0 lams
+  let captives = IS.toAscList $ freeVars $ unSym0 rejoin lams
       captives' = reverse captives
 
   (rho, rn) <- ask
@@ -122,7 +122,7 @@ instance DeepSeq0 Occ  where
   rnf0 (Par x) = rnf0 x
   rnf0 (Env x) = rnf0 x
 instance DeepSeq0 Prog where rnf0 (Prog decs tm) = rnf0 decs `seq` rnf0 tm
-instance DeepSeq0 TLF  where rnf0 = rnf2 . ig_from
+instance DeepSeq0 TLF  where rnf0 = rnf2 . unW0 ig_from
 
 
 

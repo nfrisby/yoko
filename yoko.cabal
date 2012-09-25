@@ -113,7 +113,7 @@ library
 
     Data.Yoko.Invariant,
 
-    Data.Yoko.TypeBasics, Data.Yoko.Each,
+    Data.Yoko.TypeBasics, Data.Yoko.W,
 
     Data.Yoko.Prelude,
 

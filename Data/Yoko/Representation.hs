@@ -1,5 +1,6 @@
 {-# LANGUAGE TypeFamilies, TypeOperators, TemplateHaskell,
-  UndecidableInstances, EmptyDataDecls, DataKinds, PolyKinds #-}
+  UndecidableInstances, EmptyDataDecls, DataKinds, PolyKinds,
+  MultiParamTypeClasses, FlexibleInstances #-}
 
 {- |
 
@@ -26,13 +27,13 @@ module Data.Yoko.Representation
    T0(..), T1(..), T2(..), Variety(..),
    Par1(..), Par0(..),
    -- ** Conversions to and from fields-of-products structure
-   Rep, Generic0(..), Generic1(..), Generic2(..),
+   Rep, Generic(..),
    -- ** Auxilliaries
    unC, foldC, mapC,
    unN0, foldN0, mapN0,
    unN1, foldN1, mapN1,
    unN2, foldN2, mapN2,
-   foldPlus, mapPlus,
+   foldPlus, {- foldPlusW, -} FoldPlusW'(..), mapPlus,
    foldTimes, mapTimes,
    unT0, mapT0,
    unT1, mapT1,
@@ -42,6 +43,7 @@ module Data.Yoko.Representation
    DistMaybePlus
    ) where
 
+import Data.Yoko.W
 import Data.Yoko.TypeBasics
 
 
@@ -97,9 +99,8 @@ type family Rep (t :: k) :: * -> * -> *
 
 
 -- | Converts between a fields type and its product-of-fields structure.
-class Generic0 a where rep0 :: a       -> Rep a p1 p0; obj0 :: Rep a p1 p0 -> a
-class Generic1 a where rep1 :: a    p0 -> Rep a p1 p0; obj1 :: Rep a p1 p0 -> a    p0
-class Generic2 a where rep2 :: a p1 p0 -> Rep a p1 p0; obj2 :: Rep a p1 p0 -> a p1 p0
+class Generic dc where
+  rep :: W dc (Rep dc) p1 p0; obj :: W' dc (Rep dc) p1 p0
 
 
 
@@ -139,6 +140,17 @@ mapN2 f = N2 . foldN2 f
 
 foldPlus f g x = case x of
   L x -> f x   ;   R x -> g x
+
+class FoldPlusW' (s :: k) where
+  foldPlusW' :: W' s l p1 p0 -> W' s r p1 p0 -> W' s (l :+: r) p1 p0
+instance FoldPlusW' (s :: *) where foldPlusW' (W'0 f) (W'0 g) = W'0 $ foldPlus f g
+instance FoldPlusW' (s :: * -> *) where foldPlusW' (W'1 f) (W'1 g) = W'1 $ foldPlus f g
+instance FoldPlusW' (s :: * -> * -> *) where foldPlusW' (W'2 f) (W'2 g) = W'2 $ foldPlus f g
+
+--class FoldTimesW (t :: k) (l :: * -> * -> *) (r :: * -> * -> *) where
+--  foldTimesW :: W t l p1 p0 -> W t r p1 p0 -> W t (l :*: r) p1 p0
+--instance FoldTimesW (t :: *) l r where
+--  foldTimesW (W0 f) (W0 g) = W0 $ \x -> f x :*: g x
 
 mapPlus f g = foldPlus (L . f) (R . g)
 

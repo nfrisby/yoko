@@ -23,6 +23,7 @@ See the paper \"A Pattern for Almost Homomorphic Functions\" at <http://www.ittc
 module Data.Yoko.HCompos where
 
 import Data.Yoko.TypeBasics
+import Data.Yoko.W
 import Data.Yoko
 
 import Control.Applicative
@@ -81,12 +82,12 @@ instance (HCompos0 cnv a t, HCompos0 cnv b t
   hcompos0 cnv = foldPlus (hcompos0 cnv) (hcompos0 cnv)
 
 -- NB only works if there's exactly one matching constructor
-instance (Generic0 dcA, Match (N0 dcB) ~ WithMessage dcA b (FindDCs (Tag dcA) (DCs b)),
+instance (Generic dcA, Match (N0 dcB) ~ WithMessage dcA b (FindDCs (Tag dcA) (DCs b)),
           MapRs0 cnv (ResultsInIncompatibleFields dcA dcB) dcA dcB (Rep dcA) (Rep dcB),
-          DC0 dcB, Codomain dcB ~ b, DT0 b
+          DC dcB, Codomain dcB ~ b, DT b
          ) => HCompos0 cnv (N0 dcA) b where
   hcompos0 cnv =
-    foldN0 $ liftA (rejoin0 . (id :: dcB -> dcB) . obj0) . mapRs0 cnv msgp p1 p2 . rep0
+    foldN0 $ liftA (unSym0 rejoin . (id :: dcB -> dcB) . unW'0 obj) . mapRs0 cnv msgp p1 p2 . unW0 rep
     where p1 :: Proxy dcA; p1 = Proxy; p2 :: Proxy dcB; p2 = Proxy
           msgp = ResultsInIncompatibleFields :: ResultsInIncompatibleFields dcA dcB
 

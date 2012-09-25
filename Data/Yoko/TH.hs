@@ -68,6 +68,7 @@ import Type.Serialize (serializeTypeAsHash_data)
 import qualified Type.Ord as Ord
 
 import Data.Yoko.TypeBasics (encode, Nat(..))
+import Data.Yoko.W
 import Data.Yoko.Representation
 import Data.Yoko.View
 
@@ -100,6 +101,13 @@ import Data.Record hiding (convert, Name)
 import qualified Data.Record as R
 import qualified Data.Record.Combinators as R
 import Data.Record.Combinators ((!!!))
+
+
+
+
+w0' :: (t p1 p0 -> s      ) -> W' s t p1 p0; w0' = W'0
+w1' :: (t p1 p0 -> s    p0) -> W' s t p1 p0; w1' = W'1
+w2' :: (t p1 p0 -> s p1 p0) -> W' s t p1 p0; w2' = W'2
 
 
 
@@ -251,7 +259,7 @@ pat_exp np ne k = (ConP np $ map VarP ns,
                    foldl ((. VarE) . AppE) (ConE ne) ns) where
   ns = [ mkName $ "x" ++ show i | i <- [0..k - 1] ]
 
-simpleClause pats exp = Clause pats (NormalB exp) []
+simpleVal n exp = ValD (VarP n) (NormalB exp) []
 
 halves :: [a] -> b -> (b -> b -> b) -> (a -> b) -> b
 halves as nil appnd single = w (length as) as where
@@ -433,15 +441,15 @@ yoko2 activated (convert -> X :&
   ConName      := n :&
   ConFields    := fields
         ) = do
-  let (nDC, nRejoin) = case length pars of
-        0 -> (''DC0, 'rejoin0)
-        1 -> (''DC1, 'rejoin1)
-        2 -> (''DC2, 'rejoin2)
+  let nW_rejoin = case length pars of
+        0 -> 'Sym0
+        1 -> 'Sym1
+        2 -> 'Sym2
 
-  let (nGeneric, nRep, nObj) = case length pars of
-        0 -> (''Generic0, 'rep0, 'obj0)
-        1 -> (''Generic1, 'rep1, 'obj1)
-        2 -> (''Generic2, 'rep2, 'obj2)
+  let (nW_rep, nW_obj) = case length pars of
+        0 -> ('W0, 'w0')
+        1 -> ('W1, 'w1')
+        2 -> ('W2, 'w2')
 
   let n' = rn n   ;   fd = applyConT2TVBs n' tvbs
 
@@ -449,9 +457,9 @@ yoko2 activated (convert -> X :&
   generate
     [TySynInstD ''Codomain [fd] ty,
      TySynInstD ''Tag   [fd] $ encode $ TH.nameBase n,
-     InstanceD cxt (ConT nDC `AppT` fd)
+     InstanceD cxt (ConT ''DC `AppT` fd)
        [let (pat, exp) = pat_exp n' n $ length fields
-        in FunD nRejoin [simpleClause [pat] exp]]
+        in simpleVal 'rejoin $ ConE nW_rejoin `AppE` LamE [pat] exp]
     ]
 
   -- declare the Rep and Generic RHSs
@@ -482,9 +490,9 @@ yoko2 activated (convert -> X :&
 
     return
       [ TySynInstD ''Rep [fd] (ConT ''C `AppT` fd `AppT` repTy),
-        InstanceD cxt (ConT nGeneric `AppT` fd)
-        [FunD nRep [simpleClause [ConP n' (repP conRO)] $ ConE 'C `AppE` repE conRO],
-         FunD nObj [simpleClause [ConP 'C [objP conRO]] $ foldl AppE (ConE n') $ objE conRO]]]
+        InstanceD cxt (ConT ''Generic `AppT` fd)
+        [simpleVal 'rep $ (ConE nW_rep `AppE`) $ LamE [ConP n' (repP conRO)] $ ConE 'C `AppE` repE conRO,
+         simpleVal 'obj $ (VarE nW_obj `AppE`) $ LamE [ConP 'C [objP conRO]] $ foldl AppE (ConE n') $ objE conRO]]
 
 -- generate DCs/DT instances
 yoko3 r@(convert -> X :&
@@ -498,10 +506,10 @@ yoko3 r@(convert -> X :&
   TargetTVBs   := tvbs :&
   TargetCxt    := cxt
         ) = do
-  let (nDT, nDisband, nN, nNCtor) = case length pars of
-        0 -> (''DT0, 'disband0, ''N0, 'N0)
-        1 -> (''DT1, 'disband1, ''N1, 'N1)
-        2 -> (''DT2, 'disband2, ''N2, 'N2)
+  let (nW_disband, nN, nNCtor) = case length pars of
+        0 -> ('W0, ''N0, 'N0)
+        1 -> ('W1, ''N1, 'N1)
+        2 -> ('W2, ''N2, 'N2)
 
   let invInst = case length pars of
         0 -> Nothing
@@ -522,11 +530,12 @@ yoko3 r@(convert -> X :&
                 in (ConT nN `AppT` applyConT2TVBs (rn n) tvbs,
                     [(ConE nNCtor, (n, fields))]))
 
-  cases <- return $ flip map cases $ \(inj, (n, fds)) ->
+  matches <- return $ flip map cases $ \(inj, (n, fds)) ->
     let (pat, exp) = pat_exp n (rn n) fds
-    in simpleClause [pat] $ inj `AppE` exp
+    in Match pat (NormalB $ inj `AppE` exp) []
   generate $ [TySynInstD ''DCs [ty] dcs,
-              InstanceD cxt (ConT nDT `AppT` ty) [FunD nDisband cases]]
+              InstanceD cxt (ConT ''DT `AppT` ty)
+                [simpleVal 'disband $ (ConE nW_disband `AppE`) $ LamCaseE matches]]
 
   when invInsts $ flip (maybe (return ())) invInst $ \(cls, method, rhs) ->
     generate [InstanceD cxt (ConT cls `AppT` ty) [ValD (VarP method) (NormalB (VarE rhs)) []]]

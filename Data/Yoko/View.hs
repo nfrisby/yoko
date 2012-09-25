@@ -26,10 +26,11 @@ module Data.Yoko.View
    DCs, DT(..)
   ) -} where
 
+import Data.Yoko.W
 import Data.Yoko.TypeBasics
 import Data.Yoko.Representation
-import Data.Yoko.TypeSums (Embed, Partition, (:-:))
-import Data.Yoko.Each
+--import Data.Yoko.TypeSums (Embed, Partition, (:-:))
+--import Data.Yoko.Each
 
 import Type.Digits (Digit)
 
@@ -46,9 +47,9 @@ type family Tag (dc :: k) :: Digit
 -- which case it just uses the left-most.
 type family Codomain (dc :: k) :: k
 
-type family Codomain0 (dc :: * -> * -> *) :: *
-type family Codomain1 (dc :: * -> * -> *) :: * -> *
-type family Codomain2 (dc :: * -> * -> *) :: * -> * -> *
+type family Codomain0 (dcs :: * -> * -> *) :: *
+type family Codomain1 (dcs :: * -> * -> *) :: * -> *
+type family Codomain2 (dcs :: * -> * -> *) :: * -> * -> *
 type instance Codomain0 (N0 dc   ) = Codomain dc
 type instance Codomain1 (N1 dc   ) = Codomain dc
 type instance Codomain2 (N2 dc   ) = Codomain dc
@@ -78,33 +79,12 @@ type instance SiblingDTs' t (RecDT l r) = Append l (t ': r)
 
 -- | Any fields type can be further represented as a product-of-fields and can
 -- be injected back into the original data type.
-class (Generic0 dc, DT0 (Codomain dc)) => DC0 dc where rejoin0 :: dc       -> Codomain dc
-class (Generic1 dc, DT1 (Codomain dc)) => DC1 dc where rejoin1 :: dc    p0 -> Codomain dc    p0
-class (Generic2 dc, DT2 (Codomain dc)) => DC2 dc where rejoin2 :: dc p1 p0 -> Codomain dc p1 p0
+class (Generic dc, DT (Codomain dc)) => DC dc where rejoin :: Sym dc (Codomain dc) p1 p0
 
 -- | The @DCs@ of a data type is sum of all of its fields types.
 type family DCs (t :: k) :: * -> * -> *
--- | @DT@ disbands a data type if all of its fields types have @DC@ instances.
-class Each0 (IsDCOf0 t) (DCs t) => DT0 t where disband0 :: t       -> DCs t p1 p0
-class Each1 (IsDCOf1 t) (DCs t) => DT1 t where disband1 :: t    p0 -> DCs t p1 p0
-class Each2 (IsDCOf2 t) (DCs t) => DT2 t where disband2 :: t p1 p0 -> DCs t p1 p0
-
-class (Partition (DCs (Codomain dc)) (N0 dc) (DCs (Codomain dc) :-: N0 dc),
-       Embed (N0 dc) (DCs (Codomain dc)), Codomain dc ~ t) => IsDCOf0 t dc
-instance (Partition (DCs (Codomain dc)) (N0 dc) (DCs (Codomain dc) :-: N0 dc),
-          Embed (N0 dc) (DCs (Codomain dc)), Codomain dc ~ t) => IsDCOf0 t dc
-
-class (Partition (DCs (Codomain dc)) (N1 dc) (DCs (Codomain dc) :-: N1 dc),
-       Embed (N1 dc) (DCs (Codomain dc)), Codomain dc ~ t) => IsDCOf1 t dc
-instance (Partition (DCs (Codomain dc)) (N1 dc) (DCs (Codomain dc) :-: N1 dc),
-          Embed (N1 dc) (DCs (Codomain dc)), Codomain dc ~ t) => IsDCOf1 t dc
-
-class (Partition (DCs (Codomain dc)) (N2 dc) (DCs (Codomain dc) :-: N2 dc),
-       Embed (N2 dc) (DCs (Codomain dc)), Codomain dc ~ t) => IsDCOf2 t dc
-instance (Partition (DCs (Codomain dc)) (N2 dc) (DCs (Codomain dc) :-: N2 dc),
-          Embed (N2 dc) (DCs (Codomain dc)), Codomain dc ~ t) => IsDCOf2 t dc
-
-
+-- | @DT@ disbands a data type.@
+class DT t where disband :: W t (DCs t) p1 p0
 
 
 

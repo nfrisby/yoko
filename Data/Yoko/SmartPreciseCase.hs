@@ -25,9 +25,9 @@ both work.
 
 -}
 
-module Data.Yoko.SmartPreciseCase where
+module Data.Yoko.SmartPreciseCase (precise_case0, Default(..)) where
 
-import Data.YokoRaw hiding (precise_case)
+import Data.YokoRaw hiding (precise_case0)
 import qualified Data.YokoRaw as Raw
 
 
@@ -58,15 +58,15 @@ instance (dt ~ Codomain dc, dt ~ Codomain0 dcs, r ~ r', -- False ~ Elem dc dcs,
   Builder (AdHoc dcs dt r) ((dc -> r') -> bldr) where
   precise_case_ (AdHoc dt adhoc) f = precise_case_ $ AdHoc dt $ adhoc ||. f
 
-instance (DT0 dt, dt ~ Codomain0 dcs, dt ~ Codomain0 (DCs dt),
+instance (DT dt, dt ~ Codomain0 dcs, dt ~ Codomain0 (DCs dt),
           Partition (DCs dt) dcs (DCs dt :-: dcs),
           x ~ (DCs dt :-: dcs),
           final ~ r, final' ~ r) =>
   Builder (AdHoc dcs dt r) (Default x final -> final') where
-  precise_case_ (AdHoc dt adhoc) (Default dflt) = Raw.precise_case dflt dt adhoc
+  precise_case_ (AdHoc dt adhoc) (Default dflt) = Raw.precise_case0 dflt dt adhoc
 
-precise_case :: Builder (Start dt) bldr => dt -> bldr
-precise_case = precise_case_ . Start
+precise_case0 :: Builder (Start dt) bldr => dt -> bldr
+precise_case0 = precise_case_ . Start
 
 
 

@@ -20,8 +20,8 @@ This is the technical core of @yoko@'s cheap constructor subsets.
 -}
 
 module Data.Yoko.TypeSums (DistMaybePlus, (:-:),
-                           Embed, embed, inject,
-                           Partition, project, partition) where
+                           Embed, embed, inject0, inject1, inject2,
+                           Partition, project0, project1, project2, partition) where
 
 import Data.Yoko.TypeBasics
 import Data.Yoko.Representation
@@ -38,8 +38,14 @@ class Embed sub sup where embed_ :: sub (p1 :: *) (p0 :: *) -> sup p1 p0
 embed :: Embed sub sup => sub p1 p0 -> sup p1 p0
 embed = embed_
 
-inject :: Embed (N0 a) sum => a -> sum p1 p0
-inject = embed . N0
+inject0 :: Embed (N0 a) sum => a -> sum p1 p0
+inject0 = embed . N0
+
+inject1 :: Embed (N1 a) sum => a p0 -> sum p1 p0
+inject1 = embed . N1
+
+inject2 :: Embed (N2 a) sum => a p1 p0 -> sum p1 p0
+inject2 = embed . N2
 
 
 
@@ -49,8 +55,14 @@ partition :: Partition sup sub (sup :-: sub) =>
              sup p1 p0 -> Either (sub p1 p0) ((sup :-: sub) p1 p0)
 partition = partition_
 
-project :: Partition sum (N0 a) (sum :-: N0 a) => sum p1 p0 -> Either a ((sum :-: N0 a) p1 p0)
-project = left unN0 . partition_
+project0 :: Partition sum (N0 a) (sum :-: N0 a) => sum p1 p0 -> Either a ((sum :-: N0 a) p1 p0)
+project0 = left unN0 . partition_
+
+project1 :: Partition sum (N1 a) (sum :-: N1 a) => sum p1 p0 -> Either (a p0) ((sum :-: N1 a) p1 p0)
+project1 = left unN1 . partition_
+
+project2 :: Partition sum (N2 a) (sum :-: N2 a) => sum p1 p0 -> Either (a p1 p0) ((sum :-: N2 a) p1 p0)
+project2 = left unN2 . partition_
 
 
 
