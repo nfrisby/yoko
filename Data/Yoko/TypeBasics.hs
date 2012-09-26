@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies, UndecidableInstances, DataKinds, PolyKinds, GADTs,
   FlexibleInstances, TypeOperators, Rank2Types, ScopedTypeVariables,
-  InstanceSigs, ConstraintKinds, MultiParamTypeClasses, LambdaCase #-}
+  InstanceSigs, ConstraintKinds, MultiParamTypeClasses #-}
 
 {- |
 

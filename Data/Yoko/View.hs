@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies, TypeOperators, FlexibleContexts,
   MultiParamTypeClasses, FlexibleInstances, UndecidableInstances, DataKinds,
-  PolyKinds, GADTs, LambdaCase #-}
+  PolyKinds, GADTs #-}
 
 {- |
 
