@@ -50,9 +50,9 @@ type family Codomain (dc :: k) :: k
 type family Codomain0 (dcs :: * -> * -> *) :: *
 type family Codomain1 (dcs :: * -> * -> *) :: * -> *
 type family Codomain2 (dcs :: * -> * -> *) :: * -> * -> *
-type instance Codomain0 (N0 dc   ) = Codomain dc
-type instance Codomain1 (N1 dc   ) = Codomain dc
-type instance Codomain2 (N2 dc   ) = Codomain dc
+type instance Codomain0 (N dc)    = Codomain dc
+type instance Codomain1 (N dc)    = Codomain dc
+type instance Codomain2 (N dc)    = Codomain dc
 type instance Codomain0 (l :+: r) = Codomain0 l
 type instance Codomain1 (l :+: r) = Codomain1 l
 type instance Codomain2 (l :+: r) = Codomain2 l
@@ -95,7 +95,7 @@ type instance Eval (T0 Dep t)       = t
 --type instance Eval Void           = ???
 type instance Eval (l :+: r)        = Eval l -- equivalently, Eval r
 type instance Eval (C  (dc :: *) r) = Codomain dc
-type instance Eval (N0 dc)          = Codomain dc
+type instance Eval (N dc)           = Codomain dc
 
 
 
@@ -105,9 +105,7 @@ data SubstSpec star = Sub0 star | Sub1 star | Sub10 star star
 
 type family Subst (spec :: SubstSpec *) (r :: * -> * -> *) :: * -> * -> *
 --type instance Subst spec Void  = ???
-type instance Subst spec (N0 dc)   = N0 dc
-type instance Subst spec (N1 dc)   = N1 dc
-type instance Subst spec (N2 dc)   = N2 dc
+type instance Subst spec (N dc)   = N dc
 type instance Subst spec (l :+: r) = Subst spec l :+: Subst spec r
 
 type instance Subst spec (C dc r) = C dc (Subst spec r)

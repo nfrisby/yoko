@@ -62,9 +62,9 @@ instance Generic Cons_ where
   obj = W'1 $ \(C (Par0 a :*: T1 as)) -> Cons_ a (map unPar0 as)
 
 type instance DTs []  = RecDT '[] '[]
-type instance DCs []  = N1 Nil_     :+: N1 Cons_
+type instance DCs []  = N Nil_     :+: N Cons_
 type instance DTs [a] = RecDT '[] '[]
-type instance DCs [a] = N0 (Nil_ a) :+: N0 (Cons_ a)
+type instance DCs [a] = N (Nil_ a) :+: N (Cons_ a)
 
 instance (EQ ~ SpineCompare a a) => DT [a] where
   disband = W0 $ \case

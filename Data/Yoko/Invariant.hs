@@ -34,15 +34,9 @@ instance (Invariant2 r) => Invariant2 (C dc r) where
   invmap2 f f' g g' (C x) = C $ invmap2 f f' g g' x
 
 
-
-instance Invariant2 (N0 dc) where
-  invmap2 _ _ _ _ (N0 x) = N0 x
-
-instance (Invariant2 (Rep dc), Generic dc) => Invariant2 (N1 dc) where
-  invmap2 _ _ g g' (N1 x) = N1 $ (\(W'1 f) -> f) obj $ invmap2 id id g g' $ (\(W1 f) -> f) rep x
-
-instance (Invariant2 (Rep dc), Generic dc) => Invariant2 (N2 dc) where
-  invmap2 f f' g g' (N2 x) = N2 $ (\(W'2 f) -> f) obj $ invmap2 f f' g g' $ (\(W2 f) -> f) rep x
+-- can optimize for * and * -> *, but I'm favoring terseness
+instance (WN dc, Invariant2 (Rep dc), Generic dc) => Invariant2 (N dc) where
+  invmap2 f f' g g'  = unSym nN obj . invmap2 f f' g g' . unSym rep unN
 
 instance (Invariant2 l, Invariant2 r) => Invariant2 (l :+: r) where
   invmap2 f f' g g' = \case

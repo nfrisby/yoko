@@ -69,8 +69,8 @@ type instance WithMessage dcA b Nothing  = NoCorrespondingConstructorFor_In_ dcA
 -- | @FindDCs dcA dcBs@ returns a type-level @Maybe@. @Just dcB@ is a fields
 -- type @dcB@ where @'Tag' dcA ~ dcB@.
 type family FindDCs (s :: Digit) (dcBs :: * -> * -> *) :: Maybe (* -> * -> *)
-type instance FindDCs s (N0 dc) =
-  If   (Equal s (Tag dc))   (Just (N0 dc))   Nothing
+type instance FindDCs s (N dc) =
+  If   (Equal s (Tag dc))   (Just (N dc))   Nothing
 type instance FindDCs s (a :+: b) = DistMaybePlus (FindDCs s a) (FindDCs s b)
 
 
@@ -82,10 +82,10 @@ instance (HCompos0 cnv a t, HCompos0 cnv b t
   hcompos0 cnv = foldPlus (hcompos0 cnv) (hcompos0 cnv)
 
 -- NB only works if there's exactly one matching constructor
-instance (Generic dcA, Match (N0 dcB) ~ WithMessage dcA b (FindDCs (Tag dcA) (DCs b)),
+instance (Generic dcA, Match (N dcB) ~ WithMessage dcA b (FindDCs (Tag dcA) (DCs b)),
           MapRs0 cnv (ResultsInIncompatibleFields dcA dcB) dcA dcB (Rep dcA) (Rep dcB),
           DC dcB, Codomain dcB ~ b, DT b
-         ) => HCompos0 cnv (N0 dcA) b where
+         ) => HCompos0 cnv (N dcA) b where
   hcompos0 cnv =
     foldN0 $ liftA (unSym0 rejoin . (id :: dcB -> dcB) . unW'0 obj) . mapRs0 cnv msgp p1 p2 . unW0 rep
     where p1 :: Proxy dcA; p1 = Proxy; p2 :: Proxy dcB; p2 = Proxy

@@ -19,7 +19,7 @@ The @yoko@ representation types.
 module Data.Yoko.Representation
   (-- * Representation
    -- ** Sums
-   Void(..), N0(..), N1(..), N2(..), (:+:)(..),
+   Void(..), N(..), (:+:)(..),
    C(..),
    -- ** Products
    U(..), (:*:)(..),
@@ -30,10 +30,11 @@ module Data.Yoko.Representation
    Rep, Generic(..),
    -- ** Auxilliaries
    unC, foldC, mapC,
+   WN(..),
    unN0, foldN0, mapN0,
    unN1, foldN1, mapN1,
    unN2, foldN2, mapN2,
-   foldPlus, {- foldPlusW, -} FoldPlusW'(..), mapPlus,
+   foldPlus, FoldPlusW'(..), mapPlus,
    foldTimes, mapTimes,
    unT0, mapT0,
    unT1, mapT1,
@@ -68,9 +69,10 @@ data (:*:) a b (p1 :: *) (p0 :: *) = a p1 p0 :*: b p1 p0
 data Void (p1 :: *) (p0 :: *)
 
 -- | The singleton sum.
-newtype N0 dc (p1 :: *) (p0 :: *) = N0  dc
-newtype N1 dc (p1 :: *) (p0 :: *) = N1 (dc    p0)
-newtype N2 dc (p1 :: *) (p0 :: *) = N2 (dc p1 p0)
+data family N (dc :: k) :: * -> * -> *
+newtype instance N dc (p1 :: *) (p0 :: *) = N0  dc
+newtype instance N dc (p1 :: *) (p0 :: *) = N1 (dc    p0)
+newtype instance N dc (p1 :: *) (p0 :: *) = N2 (dc p1 p0)
 
 infixl 6 :+:
 -- | Sum union.
@@ -103,6 +105,14 @@ class Generic dc where
   rep :: W dc (Rep dc) p1 p0; obj :: W' dc (Rep dc) p1 p0
 
 
+
+
+class ComposeW dc => WN dc where
+  nN  :: W  dc (N dc) p1 p0
+  unN :: W' dc (N dc) p1 p0
+instance WN (dc :: *)           where nN = W0 N0; unN = W'0 unN0
+instance WN (dc :: * -> *)      where nN = W1 N1; unN = W'1 unN1
+instance WN (dc :: * -> * -> *) where nN = W2 N2; unN = W'2 unN2
 
 unT0 (T0 x) = x
 mapT0 f (T0 x) = T0 (f x)
@@ -147,11 +157,6 @@ instance FoldPlusW' (s :: *) where foldPlusW' (W'0 f) (W'0 g) = W'0 $ foldPlus f
 instance FoldPlusW' (s :: * -> *) where foldPlusW' (W'1 f) (W'1 g) = W'1 $ foldPlus f g
 instance FoldPlusW' (s :: * -> * -> *) where foldPlusW' (W'2 f) (W'2 g) = W'2 $ foldPlus f g
 
---class FoldTimesW (t :: k) (l :: * -> * -> *) (r :: * -> * -> *) where
---  foldTimesW :: W t l p1 p0 -> W t r p1 p0 -> W t (l :*: r) p1 p0
---instance FoldTimesW (t :: *) l r where
---  foldTimesW (W0 f) (W0 g) = W0 $ \x -> f x :*: g x
-
 mapPlus f g = foldPlus (L . f) (R . g)
 
 mapTimes f g (a :*: b) = f a :*: g b
@@ -186,5 +191,5 @@ type instance CountRs (a :*: b) = Add (CountRs a) (CountRs b)
 
 
 
-concat `fmap` mapM derive_data [''Variety, ''T0, ''T1, ''T2, ''Par1, ''Par0, ''C, ''U, ''(:*:), ''N0, ''N1, ''N2, ''(:+:)]
+concat `fmap` mapM derive_data [''Variety, ''T0, ''T1, ''T2, ''Par1, ''Par0, ''C, ''U, ''(:*:), ''N, ''(:+:)]
 concat `fmap` mapM derive_pro ['Rec, 'Dep, 'Z, 'S]

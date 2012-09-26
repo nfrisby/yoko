@@ -49,12 +49,12 @@ instance Error_precise_case_requires_at_least_1_special_case () => Builder (Star
 newtype Start dt = Start dt
 
 instance (dt ~ Codomain dc,
-          Builder (AdHoc (N0 dc) (Codomain dc) r) bldr) =>
+          Builder (AdHoc (N dc) (Codomain dc) r) bldr) =>
   Builder (Start dt) ((dc -> r) -> bldr) where
   precise_case_ (Start dt) f = precise_case_ $ AdHoc dt $ one f
 
 instance (dt ~ Codomain dc, dt ~ Codomain0 dcs, r ~ r', -- False ~ Elem dc dcs,
-          Builder (AdHoc (dcs :+: N0 dc) dt r) bldr) =>
+          Builder (AdHoc (dcs :+: N dc) dt r) bldr) =>
   Builder (AdHoc dcs dt r) ((dc -> r') -> bldr) where
   precise_case_ (AdHoc dt adhoc) f = precise_case_ $ AdHoc dt $ adhoc ||. f
 

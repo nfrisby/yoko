@@ -506,10 +506,10 @@ yoko3 r@(convert -> X :&
   TargetTVBs   := tvbs :&
   TargetCxt    := cxt
         ) = do
-  let (nW_disband, nN, nNCtor) = case length pars of
-        0 -> ('W0, ''N0, 'N0)
-        1 -> ('W1, ''N1, 'N1)
-        2 -> ('W2, ''N2, 'N2)
+  let (nW_disband, nNCtor) = case length pars of
+        0 -> ('W0, 'N0)
+        1 -> ('W1, 'N1)
+        2 -> ('W2, 'N2)
 
   let invInst = case length pars of
         0 -> Nothing
@@ -527,7 +527,7 @@ yoko3 r@(convert -> X :&
     (\con -> do
        fields <- length `fmap` conFields con
        return $ let n = conName con
-                in (ConT nN `AppT` applyConT2TVBs (rn n) tvbs,
+                in (ConT ''N `AppT` applyConT2TVBs (rn n) tvbs,
                     [(ConE nNCtor, (n, fields))]))
 
   matches <- return $ flip map cases $ \(inj, (n, fds)) ->

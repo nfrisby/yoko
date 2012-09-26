@@ -10,9 +10,6 @@ import Data.Semigroup (Min(..))
 import qualified Data.Yoko.MinCtors.MMap as MMap
 import Data.Yoko.MinCtors.Minima
 
-import qualified GHC.Word
-import qualified GHC.ForeignPtr
-
 import Data.Monoid (mappend)
 
 --------------------
@@ -87,29 +84,13 @@ instance MinInfoNonRec (Void t) where minInfoNonRec = nCtors 0
 
 
 
-deN0 :: Proxy (N0 dc) -> Proxy dc
-deN0 _ = Proxy
+deN :: Proxy (N dc) -> Proxy dc
+deN _ = Proxy
 
-instance MinInfoRec (Rep dc) ts => MinInfoRec (N0 dc) ts where
-  minInfoRec = minInfoRec . pRep . deN0
-instance MinInfoNonRec (Rep dc) => MinInfoNonRec (N0 dc) where
-  minInfoNonRec = minInfoNonRec . pRep . deN0
-
-deN1 :: Proxy (N1 dc) -> Proxy dc
-deN1 _ = Proxy
-
-instance MinInfoRec (Rep dc) ts => MinInfoRec (N1 dc) ts where
-  minInfoRec = minInfoRec . pRep . deN1
-instance MinInfoNonRec (Rep dc) => MinInfoNonRec (N1 dc) where
-  minInfoNonRec = minInfoNonRec . pRep . deN1
-
-deN2 :: Proxy (N2 dc) -> Proxy dc
-deN2 _ = Proxy
-
-instance MinInfoRec (Rep dc) ts => MinInfoRec (N2 dc) ts where
-  minInfoRec = minInfoRec . pRep . deN2
-instance MinInfoNonRec (Rep dc) => MinInfoNonRec (N2 dc) where
-  minInfoNonRec = minInfoNonRec . pRep . deN2
+instance MinInfoRec (Rep dc) ts => MinInfoRec (N dc) ts where
+  minInfoRec = minInfoRec . pRep . deN
+instance MinInfoNonRec (Rep dc) => MinInfoNonRec (N dc) where
+  minInfoNonRec = minInfoNonRec . pRep . deN
 
 
 
@@ -215,14 +196,6 @@ class MinCtors t where
   minCtors :: Proxy t -> Minima2
   default minCtors :: MinCtorsWorker t (DTs t) => Proxy t -> Minima2
   minCtors = gen_minCtors
-
-instance MinCtors Int     where minCtors = nCtors 1
-instance MinCtors Integer where minCtors = nCtors 1
-instance MinCtors Char    where minCtors = nCtors 1
-instance MinCtors Float   where minCtors = nCtors 1
-instance MinCtors Double  where minCtors = nCtors 1
-instance MinCtors GHC.Word.Word8 where minCtors = nCtors 1
-instance MinCtors GHC.ForeignPtr.ForeignPtr where minCtors = nCtors 1
 
 class MinCtorsWorker t dpos where method :: Proxy t -> Proxy dpos -> Minima2
 

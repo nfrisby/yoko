@@ -44,7 +44,7 @@ import qualified Data.Yoko.TypeSums as TypeSums
 
 -- | @one@ extends a function that consumes a fields type to a function that
 -- consumes a disbanded data type containing just that fields type.
-one :: (dc -> a) -> N0 dc p1 p0 -> a
+one :: (dc -> a) -> N dc p1 p0 -> a
 one = foldN0
 
 infixl 6 |||
@@ -67,7 +67,7 @@ f ||. g = f ||| one g
 
 
 -- | @disbanded@ injects a fields type into its disbanded range
-disbanded :: Embed (N0 dc) (DCs (Codomain dc)) => dc -> DCs (Codomain dc) p1 p0
+disbanded :: Embed (N dc) (DCs (Codomain dc)) => dc -> DCs (Codomain dc) p1 p0
 disbanded = TypeSums.inject0
 
 -- | @band@s a disbanded data type back into its normal data type.
@@ -75,12 +75,8 @@ disbanded = TypeSums.inject0
 -- Since 'DCs' is a type family, it's the range of @band@ that determines the
 -- @t@ type variable.
 class AreDCsOf (t :: k) (dcs :: * -> * -> *) where band_ :: W' t dcs p1 p0
-instance (Codomain dc ~ t, DC dc) => AreDCsOf t (N0 dc) where
-  band_ = W'0 $ (\(Sym0 f) -> f) rejoin . unN0
-instance (Codomain dc ~ t, DC dc) => AreDCsOf t (N1 dc) where
-  band_ = W'1 $ (\(Sym1 f) -> f) rejoin . unN1
-instance (Codomain dc ~ t, DC dc) => AreDCsOf t (N2 dc) where
-  band_ = W'2 $ (\(Sym2 f) -> f) rejoin . unN2
+instance (WN dc, Codomain dc ~ t, DC dc) => AreDCsOf t (N dc) where
+  band_ = composeSymW' rejoin unN
 instance (FoldPlusW' t, AreDCsOf t l, AreDCsOf t r) => AreDCsOf t (l :+: r) where band_ = foldPlusW' band_ band_
 
 band :: (AreDCsOf (t :: k) (DCs t)) => W' t (DCs t) p1 p0
@@ -91,7 +87,7 @@ embed = TypeSums.embed
 
 
 -- | @inject@s a fields type into a sum of fields types.
-inject :: Embed (N0 dc) sum => dc -> sum p1 p0
+inject :: Embed (N dc) sum => dc -> sum p1 p0
 inject = TypeSums.inject0
 
 -- | @partition@s a sum of fields type into a specified sum of fields types and
@@ -101,8 +97,8 @@ partition :: (Codomain0 sum ~ Codomain0 sub, Partition sum sub (sum :-: sub)) =>
 partition = TypeSums.partition
 
 -- | @project@s a single fields type out of a disbanded data type.
-project :: (Codomain0 sum ~ Codomain dc, Partition sum (N0 dc) (sum :-: N0 dc)) =>
-           sum p1 p0 -> Either dc ((sum :-: N0 dc) p1 p0)
+project :: (Codomain0 sum ~ Codomain dc, Partition sum (N dc) (sum :-: N dc)) =>
+           sum p1 p0 -> Either dc ((sum :-: N dc) p1 p0)
 project = TypeSums.project0
 
 
@@ -114,20 +110,11 @@ reps :: EachGeneric sum => sum p1 p0 -> EachRep sum p1 p0
 reps = repEach
 
 type family EachRep (sum :: * -> * -> *) :: * -> * -> *
-type instance EachRep (N0 a) = Rep a
-type instance EachRep (N1 a) = Rep a
-type instance EachRep (N2 a) = Rep a
+type instance EachRep (N a) = Rep a
 type instance EachRep (a :+: b) = EachRep a :+: EachRep b
-class EachGeneric sum where
-  repEach :: sum p1 p0 -> EachRep sum p1 p0
-instance Generic a => EachGeneric (N0 a) where
-  repEach = (\(W0 x) -> x) rep . unN0
-instance Generic a => EachGeneric (N1 a) where
-  repEach = (\(W1 x) -> x) rep . unN1
-instance Generic a => EachGeneric (N2 a) where
-  repEach = (\(W2 x) -> x) rep . unN2
-instance (EachGeneric a, EachGeneric b) => EachGeneric (a :+: b) where
-  repEach = mapPlus repEach repEach
+class EachGeneric sum where repEach :: sum p1 p0 -> EachRep sum p1 p0
+instance (WN dc, Generic dc) => EachGeneric (N dc) where repEach = unSym rep unN
+instance (EachGeneric a, EachGeneric b) => EachGeneric (a :+: b) where repEach = mapPlus repEach repEach
 
 
 

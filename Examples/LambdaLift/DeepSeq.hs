@@ -35,9 +35,8 @@ class DeepSeq2 a where
   default rnf2 :: (DeepSeq2 (DCs a), DT a) => a () () -> ()
   rnf2 = rnf2 . unW2 disband
 
-instance (DeepSeq2 (Rep a), Generic a) => DeepSeq2 (N0 a) where rnf2 = rnf2 . unW0 rep . unN0
-instance (DeepSeq2 (Rep a), Generic a) => DeepSeq2 (N1 a) where rnf2 = rnf2 . unW1 rep . unN1
-instance (DeepSeq2 (Rep a), Generic a) => DeepSeq2 (N2 a) where rnf2 = rnf2 . unW2 rep . unN2
+instance (WN a, DeepSeq2 (Rep a), Generic a) => DeepSeq2 (N a) where
+  rnf2 = rnf2 . unSym rep unN
 instance (DeepSeq2 a, DeepSeq2 b) => DeepSeq2 (a :+: b) where
   rnf2 = foldPlus rnf2 rnf2
 

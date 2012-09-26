@@ -59,11 +59,8 @@ instance FreeVars ULC where
 --  freeVars = freeVars . unDCsOf
 instance (FreeVars2 a, FreeVars2 b) => FreeVars2 (a :+: b) where
   freeVars2 = foldPlus freeVars2 freeVars2
-instance (Generic a, FreeVars2 (Rep a)) => FreeVars2 (N0 a) where
-  freeVars2 = freeVars2 . repUnN0
-
-repUnN0 :: Generic dc => N0 dc p1 p0 -> Rep dc p1 p0
-repUnN0 = unW0 rep . unN0
+instance (WN dc, Generic dc, FreeVars2 (Rep dc)) => FreeVars2 (N dc) where
+  freeVars2 = freeVars2 . unSym rep unN
 
 -- through products
 instance FreeVars2 U where freeVars2 = const IS.empty
