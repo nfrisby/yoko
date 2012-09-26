@@ -2,15 +2,19 @@
 
 module Data.Yoko.MinCtorsTest where
 
+import Data.Yoko
 import Data.Yoko.MinCtors
-import Data.Yoko.TH
-import Data.Yoko.Representation
+import Data.Yoko.TH (yokoTH)
 
 import qualified Data.List as List
 
 import Language.Haskell.TH.Syntax
 
 import qualified GHC.Types as Types
+
+import Data.Yoko.MinCtors.Prims1 ()
+
+
 
 
 
@@ -27,14 +31,14 @@ yokoTH ''ModName
 instance MinCtors ModName
 
 yokoTH_with (yokoDefaults {dcInsts = (List.\\ ['NameU, 'NameL])}) ''NameFlavour
-type instance Rep NameU_ = C NameU_ (Dep0 Int)
-instance Generic0 NameU_ where
-  rep0 (NameU_ x) = C (Dep0 (Types.I# x))
-  obj0 (C (Dep0 (Types.I# x))) = NameU_ x
-type instance Rep NameL_ = C NameL_ (Dep0 Int)
-instance Generic0 NameL_ where
-  rep0 (NameL_ x) = C (Dep0 (Types.I# x))
-  obj0 (C (Dep0 (Types.I# x))) = NameL_ x
+type instance Rep NameU_ = C NameU_ (T0 Dep Int)
+instance Generic NameU_ where
+  rep = W0  $ \(NameU_ x) -> C (T0 (Types.I# x))
+  obj = W'0 $ \(C (T0 (Types.I# x))) -> NameU_ x
+type instance Rep NameL_ = C NameL_ (T0 Dep Int)
+instance Generic NameL_ where
+  rep = W0  $ \(NameL_ x) -> C (T0 (Types.I# x))
+  obj = W'0 $ \(C (T0 (Types.I# x))) -> NameL_ x
 
 instance MinCtors NameFlavour
 

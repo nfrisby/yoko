@@ -12,6 +12,8 @@ import Data.Yoko.MinCtors.Minima
 
 import Data.Monoid (mappend)
 
+import qualified GHC.Real
+
 --------------------
 -- miscellaneous
 
@@ -49,8 +51,11 @@ minima1ToSiblingInT =
 void :: Minima2
 void = MMap.singleton (0, 0) $ Min 0
 
-nCtors :: Int -> Proxy t -> Minima2
-nCtors n _ = MMap.singleton (0, 0) $ Min n
+nCtors :: MinCtorsTrim t => Int -> Proxy t -> MinCtorsT t
+nCtors n p = minCtorsTrim p $ nCtors' n p
+
+nCtors' :: Int -> Proxy t -> Minima2
+nCtors' n _ = MMap.singleton (0, 0) $ Min n
 
 
 
@@ -80,7 +85,7 @@ instance (MinCtors ff, MinInfoNonRec rB, MinInfoNonRec rA) => MinInfoNonRec (T2 
 
 
 instance (VRepeat ts) => MinInfoRec (Void t) ts where minInfoRec _ _ = minima1ToSiblingInT void
-instance MinInfoNonRec (Void t) where minInfoNonRec = nCtors 0
+instance MinInfoNonRec (Void t) where minInfoNonRec = nCtors' 0
 
 
 
@@ -116,7 +121,7 @@ instance (MinInfoNonRec l, MinInfoNonRec r) => MinInfoNonRec (l :+: r) where
 
 
 
-instance MinInfoNonRec U where minInfoNonRec = nCtors 0
+instance MinInfoNonRec U where minInfoNonRec = nCtors' 0
 instance (VRepeat ts) => MinInfoRec U ts where minInfoRec _ _ = minima1ToSiblingInT void
 
 deTimes :: Proxy (l :*: r) -> (Proxy l, Proxy r)
@@ -178,9 +183,8 @@ deDep0 _ = Proxy
 instance (VRepeat ts, MinInfoNonRec (T0 Dep t)) => MinInfoRec (T0 Dep t) ts where
   minInfoRec p _ = minima1ToSiblingInT $ minInfoNonRec p
 
-instance MinCtors t => MinInfoNonRec (T0 Dep t) where minInfoNonRec = minCtors . deDep0
-
-
+instance MinCtors t => MinInfoNonRec (T0 Dep t) where
+  minInfoNonRec = maybe MMap.empty (MMap.singleton (0, 0) . Min) . minCtors . deDep0
 
 
 
@@ -189,12 +193,24 @@ instance MinCtors t => MinInfoNonRec (T0 Dep t) where minInfoNonRec = minCtors .
 pDTs :: Proxy t -> Proxy (DTs t)
 pDTs _ = Proxy
 
-gen_minCtors :: MinCtorsWorker t (DTs t) => Proxy t -> Minima2
-gen_minCtors p = method p (pDTs p)
+class MinCtorsTrim t where minCtorsTrim :: Proxy t -> Minima2 -> MinCtorsT t
+instance MinCtorsTrim (t :: *) where
+  minCtorsTrim _ m = getMin `fmap` MMap.lookup (0, 0) m
+instance MinCtorsTrim (t :: * -> *) where
+  minCtorsTrim _ = MMap.mapWithMonoKeys (\(_, nP0) -> nP0) id
+instance MinCtorsTrim (t :: * -> * -> *) where minCtorsTrim _ = id
+
+gen_minCtors :: (MinCtorsTrim t, MinCtorsWorker t (DTs t)) => Proxy t -> MinCtorsT t
+gen_minCtors p = minCtorsTrim p $ method p (pDTs p)
+
+type family MinCtorsT (t :: k) :: *
+type instance MinCtorsT (t :: *) = Maybe Int
+type instance MinCtorsT (t :: * -> *) = Minima1
+type instance MinCtorsT (t :: * -> * -> *) = Minima2
 
 class MinCtors t where
-  minCtors :: Proxy t -> Minima2
-  default minCtors :: MinCtorsWorker t (DTs t) => Proxy t -> Minima2
+  minCtors :: Proxy t -> MinCtorsT t
+  default minCtors :: (MinCtorsTrim t, MinCtorsWorker t (DTs t)) => Proxy t -> MinCtorsT t
   minCtors = gen_minCtors
 
 class MinCtorsWorker t dpos where method :: Proxy t -> Proxy dpos -> Minima2
@@ -352,3 +368,6 @@ instance MinCtors a => MinCtors [a]
 instance MinCtors Either
 instance MinCtors a => MinCtors (Either a)
 instance (MinCtors a, MinCtors b) => MinCtors (Either a b)
+
+instance MinCtors GHC.Real.Ratio
+instance MinCtors a => MinCtors (GHC.Real.Ratio a)

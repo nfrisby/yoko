@@ -148,16 +148,16 @@ chaotic f = w where w x = let x' = f x in if x == x' then x else w x'
 --------------------
 -- combining minima
 
-plug0 :: Ord (CVec ts NRec) => Minima2 -> SiblingInT ts -> SiblingInT ts
-plug0 f s0 = flip MMap.foldMap f $ \(_, np0) (Min k) ->
+plug0 :: Ord (CVec ts NRec) => Minima1 -> SiblingInT ts -> SiblingInT ts
+plug0 f s0 = flip MMap.foldMap f $ \np0 (Min k) ->
   MMap.map (fmap (+k)) $ scaleSiblingInTs np0 s0
 
 plug10 :: Ord (CVec ts NRec) => Minima2 -> SiblingInT ts -> SiblingInT ts -> SiblingInT ts
 plug10 f s1 s0 = flip MMap.foldMap f $ \(np1, np0) (Min k) ->
   MMap.map (fmap (+k)) $ scaleSiblingInTs np1 s1 `addSiblingInTs` scaleSiblingInTs np0 s0
 
-plug0' :: Minima2 -> Minima2 -> Minima2
-plug0' f s0 = flip MMap.foldMap f $ \(_, np0) (Min k) ->
+plug0' :: Minima1 -> Minima2 -> Minima2
+plug0' f s0 = flip MMap.foldMap f $ \np0 (Min k) ->
   MMap.map (fmap (+k)) $ scale np0 s0
 
 plug10' :: Minima2 -> Minima2 -> Minima2 -> Minima2

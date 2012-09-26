@@ -118,6 +118,7 @@ library
     Data.Yoko.Prelude,
 
     Data.Yoko.MinCtors,
+    Data.Yoko.MinCtors.Prims0, Data.Yoko.MinCtors.Prims1,
     Data.Yoko.MinCtors.Minima,
     Data.Yoko.MinCtors.MMap
 
