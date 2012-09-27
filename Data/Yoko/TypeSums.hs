@@ -33,7 +33,7 @@ import Control.Arrow (left)
 
 
 
-class Embed sub sup where embed_ :: sub (p1 :: *) (p0 :: *) -> sup p1 p0
+class Embed sub sup where embed_ :: sub (p1 :: k1) (p0 :: k0) -> sup p1 p0
 
 embed :: Embed sub sup => sub p1 p0 -> sup p1 p0
 embed = embed_
@@ -49,7 +49,7 @@ inject2 = embed . N2
 
 
 
-class Partition sup subL subR where partition_ :: sup (p1 :: *) (p0 :: *) -> Either (subL p1 p0) (subR p1 p0)
+class Partition sup subL subR where partition_ :: sup (p1 :: k1) (p0 :: k0) -> Either (subL p1 p0) (subR p1 p0)
 
 partition :: Partition sup sub (sup :-: sub) =>
              sup p1 p0 -> Either (sub p1 p0) ((sup :-: sub) p1 p0)
@@ -70,7 +70,7 @@ project2 = left unN2 . partition_
 
 data Path k = Here k | TurnLeft (Path k) | TurnRight (Path k)
 
-type family Locate (a :: k) (sum :: * -> * -> *) :: Maybe (Path k)
+type family Locate (a :: k) (sum :: k1 -> k0 -> *) :: Maybe (Path k)
 type instance Locate a (N x)     = If (Equal x a) (Just (Here a)) Nothing
 type instance Locate a (l :+: r) =
   MaybeMap TurnLeft (Locate a l) `MaybePlus1`
@@ -83,7 +83,7 @@ type Elem a sum = IsJust (Locate a sum)
 
 
 
-class InjectAt path n sum where injectAt :: Proxy path -> n (p1 :: *) (p0 :: *) -> sum p1 p0
+class InjectAt path n sum where injectAt :: Proxy path -> n (p1 :: k1) (p0 :: k0) -> sum p1 p0
 instance InjectAt (Here a) (N a) (N a) where injectAt _ = id
 instance InjectAt path a l => InjectAt (TurnLeft path) a (l :+: r) where
   injectAt _ = L . injectAt (Proxy :: Proxy path)
@@ -104,12 +104,12 @@ instance (Embed l sup, Embed r sup) => Embed (l :+: r) sup where
 
 
 infixl 6 :-:
-type family (:-:) (sum :: * -> * -> *) (sum2 :: * -> * -> *) :: * -> * -> *
+type family (:-:) (sum :: k1 -> k0 -> *) (sum2 :: k1 -> k0 -> *) :: k1 -> k0 -> *
 type instance (:-:) (N x)    sum2 = If (Elem x sum2) Void (N x)
 type instance (:-:) (l :+: r) sum2 = Combine (l :-: sum2) (r :-: sum2)
 
 
-type family Combine (sum :: * -> * -> *) (sum2 :: * -> * -> *) :: * -> * -> *
+type family Combine (sum :: k1 -> k0 -> *) (sum2 :: k1 -> k0 -> *) :: k1 -> k0 -> *
 type instance Combine Void x = x
 type instance Combine (N x) Void = N x
 type instance Combine (N x) (N y) = N x :+: N y
@@ -121,7 +121,7 @@ type instance Combine (ll :+: rl) (lr :+: rr) = (ll :+: rl) :+: (lr :+: rr)
 
 
 class Partition_N (bn :: Bool) x subL subR where
-  partition_N :: Proxy bn -> x (p1 :: *) (p0 :: *) -> Either (subL p1 p0) (subR p1 p0)
+  partition_N :: Proxy bn -> x (p1 :: k1) (p0 :: k0) -> Either (subL p1 p0) (subR p1 p0)
 
 instance (Partition_N (Elem x subL) (N x) subL subR
          ) => Partition (N x) subL subR where

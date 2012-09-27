@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, TemplateHaskell, TypeOperators, DataKinds #-}
+{-# LANGUAGE TypeFamilies, TemplateHaskell, TypeOperators, DataKinds, PolyKinds, MultiParamTypeClasses #-}
 
 {- |
 

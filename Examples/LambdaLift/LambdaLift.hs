@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies, MultiParamTypeClasses, DataKinds #-}
 
 {- |
 
@@ -55,7 +55,8 @@ llLam lams@(Lam_ tyTop tmTop) = do
         peel (acc, ty') (Lam ty tm) = peel (ty' : acc, ty) tm
         peel acc tm = (acc, tm)
   let nLocals = 1 + length tys -- NB "1 +" is for ty
-  let captives = IS.toAscList $ freeVars $ unSym0 rejoin lams
+  let captives = IS.toAscList $ freeVars $ unSym0 (rejoin pK) lams
+        where pK = Proxy :: Proxy ('KProxy :: KProxy * *)
       captives' = reverse captives
 
   (rho, rn) <- ask

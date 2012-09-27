@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, TypeFamilies, UndecidableInstances, Rank2Types #-}
+{-# LANGUAGE TypeOperators, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, TypeFamilies, UndecidableInstances, Rank2Types, DataKinds #-}
 
 {- |
 
@@ -33,8 +33,8 @@ import qualified Data.YokoRaw as Raw
 
 class Error_precise_case_requires_at_least_1_special_case a
 
-data AdHoc dcs dt r = AdHoc dt (forall p1 p0. dcs p1 p0 -> r)
-newtype Default a r = Default (forall p1 p0. a p1 p0 -> r)
+data AdHoc dcs dt r = AdHoc dt (forall (p1 :: ()) (p0 :: ()). dcs p1 p0 -> r)
+newtype Default a r = Default (forall (p1 :: ()) (p0 :: ()). a p1 p0 -> r)
 
 
 
@@ -58,9 +58,10 @@ instance (dt ~ Codomain dc, dt ~ Codomain0 dcs, r ~ r', -- False ~ Elem dc dcs,
   Builder (AdHoc dcs dt r) ((dc -> r') -> bldr) where
   precise_case_ (AdHoc dt adhoc) f = precise_case_ $ AdHoc dt $ adhoc ||. f
 
-instance (DT dt, dt ~ Codomain0 dcs, dt ~ Codomain0 (DCs dt),
-          Partition (DCs dt) dcs (DCs dt :-: dcs),
-          x ~ (DCs dt :-: dcs),
+instance (any ~ ('KProxy :: KProxy () ()),
+          DT dt any, dt ~ Codomain0 dcs, dt ~ Codomain0 (DCs dt any),
+          Partition (DCs dt any) dcs (DCs dt any :-: dcs),
+          x ~ (DCs dt any :-: dcs),
           final ~ r, final' ~ r) =>
   Builder (AdHoc dcs dt r) (Default x final -> final') where
   precise_case_ (AdHoc dt adhoc) (Default dflt) = Raw.precise_case0 dflt dt adhoc

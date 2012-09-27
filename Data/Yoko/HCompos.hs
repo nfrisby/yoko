@@ -68,7 +68,7 @@ type instance WithMessage dcA b Nothing  = NoCorrespondingConstructorFor_In_ dcA
 
 -- | @FindDCs dcA dcBs@ returns a type-level @Maybe@. @Just dcB@ is a fields
 -- type @dcB@ where @'Tag' dcA ~ dcB@.
-type family FindDCs (s :: Digit) (dcBs :: * -> * -> *) :: Maybe (* -> * -> *)
+type family FindDCs (s :: Digit) (dcBs :: k1 -> k0 -> *) :: Maybe (k1 -> k0 -> *)
 type instance FindDCs s (N dc) =
   If   (Equal s (Tag dc))   (Just (N dc))   Nothing
 type instance FindDCs s (a :+: b) = DistMaybePlus (FindDCs s a) (FindDCs s b)
@@ -82,13 +82,15 @@ instance (HCompos0 cnv a t, HCompos0 cnv b t
   hcompos0 cnv = foldPlus (hcompos0 cnv) (hcompos0 cnv)
 
 -- NB only works if there's exactly one matching constructor
-instance (Generic dcA, Match (N dcB) ~ WithMessage dcA b (FindDCs (Tag dcA) (DCs b)),
-          MapRs0 cnv (ResultsInIncompatibleFields dcA dcB) dcA dcB (Rep dcA) (Rep dcB),
-          DC dcB, Codomain dcB ~ b, DT b
+instance (any ~ ('KProxy :: KProxy () ()),
+          Generic dcA any, Match (N dcB) ~ WithMessage dcA b (FindDCs (Tag dcA) (DCs b any)),
+          MapRs0 cnv (ResultsInIncompatibleFields dcA dcB) dcA dcB (Rep dcA any) (Rep dcB any),
+          DC dcB any, Codomain dcB ~ b, DT b any
          ) => HCompos0 cnv (N dcA) b where
   hcompos0 cnv =
-    foldN0 $ liftA (unSym0 rejoin . (id :: dcB -> dcB) . unW'0 obj) . mapRs0 cnv msgp p1 p2 . unW0 rep
+    foldN0 $ liftA (unSym0 (rejoin pany) . (id :: dcB -> dcB) . unW'0 (obj pany)) . mapRs0 cnv msgp p1 p2 . unW0 (rep pany)
     where p1 :: Proxy dcA; p1 = Proxy; p2 :: Proxy dcB; p2 = Proxy
+          pany = Proxy :: Proxy ('KProxy :: KProxy () ())
           msgp = ResultsInIncompatibleFields :: ResultsInIncompatibleFields dcA dcB
 
 data ResultsInIncompatibleFields (dcA :: k) (dcB :: k) = ResultsInIncompatibleFields
@@ -114,16 +116,16 @@ instance (MapRs0 cnv msg dc dc' a a', MapRs0 cnv msg dc dc' b b'
 instance MapRs0 cnv msg dc dc' a a' => MapRs0 cnv msg dc dc' (C dcA a) (C dcB a') where
   mapRs0 cnv msgp p1 p2 (C x) = C <$> mapRs0 cnv msgp p1 p2 x
 
-instance Convert0 cnv a b => MapRs0 cnv msg dc dc' (T0 (Rec lbl) a) (T0 (Rec lbl') b) where
+instance Convert0 cnv a b => MapRs0 cnv msg dc dc' (T0 (Rec lbl a)) (T0 (Rec lbl' b)) where
   mapRs0 cnv _ _ _ (T0 x) = T0 <$> convert0 cnv x
 
-instance Applicative (Idiom cnv) => MapRs0 cnv msg dc dc' (T0 Dep a) (T0 Dep a) where
+instance Applicative (Idiom cnv) => MapRs0 cnv msg dc dc' (T0 (Dep a)) (T0 (Dep a)) where
   mapRs0 _ _ _ _ = pure
 
 instance (Traversable f, MapRs0 cnv msg dc dc' a a'
-         ) => MapRs0 cnv msg dc dc' (T1 Dep f a) (T1 Dep f a') where
+         ) => MapRs0 cnv msg dc dc' (T1 (Dep f) a) (T1 (Dep f) a') where
   mapRs0 cnv msgp p1 p2 (T1 x) = T1 <$> traverse (mapRs0 cnv msgp p1 p2) x
 
 instance (Bitraversable f, MapRs0 cnv msg dc dc' a a', MapRs0 cnv msg dc dc' b b'
-         ) => MapRs0 cnv msg dc dc' (T2 Dep f a b) (T2 Dep f a' b') where
+         ) => MapRs0 cnv msg dc dc' (T2 (Dep f) a b) (T2 (Dep f) a' b') where
   mapRs0 cnv msgp p1 p2 (T2 x) = T2 <$> bitraverse (mapRs0 cnv msgp p1 p2) (mapRs0 cnv msgp p1 p2) x

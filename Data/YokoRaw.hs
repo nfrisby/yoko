@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies, TypeOperators, FlexibleContexts,
   MultiParamTypeClasses, FlexibleInstances, ScopedTypeVariables,
-  UndecidableInstances, PolyKinds #-}
+  UndecidableInstances, PolyKinds, DataKinds, ConstraintKinds #-}
 
 {- |
 
@@ -36,6 +36,7 @@ import Data.Yoko.W
 import Data.Yoko.TypeBasics
 import Data.Yoko.Representation
 import Data.Yoko.View
+import Data.Yoko.Invariant
 import Data.Yoko.TypeSums (Embed, Partition, (:-:))
 import qualified Data.Yoko.TypeSums as TypeSums
 --import Data.Yoko.Each
@@ -67,20 +68,24 @@ f ||. g = f ||| one g
 
 
 -- | @disbanded@ injects a fields type into its disbanded range
-disbanded :: Embed (N dc) (DCs (Codomain dc)) => dc -> DCs (Codomain dc) p1 p0
-disbanded = TypeSums.inject0
+disbanded :: Embed (N dc) (DCs (Codomain dc) ('KProxy :: KProxy k1 k0)) => dc -> DCs (Codomain dc) ('KProxy :: KProxy k1 k0) p1 p0
+disbanded x = TypeSums.inject0 x
 
 -- | @band@s a disbanded data type back into its normal data type.
 --
 -- Since 'DCs' is a type family, it's the range of @band@ that determines the
 -- @t@ type variable.
-class AreDCsOf (t :: k) (dcs :: * -> * -> *) where band_ :: W' t dcs p1 p0
-instance (WN dc, Codomain dc ~ t, DC dc) => AreDCsOf t (N dc) where
-  band_ = composeSymW' rejoin unN
-instance (FoldPlusW' t, AreDCsOf t l, AreDCsOf t r) => AreDCsOf t (l :+: r) where band_ = foldPlusW' band_ band_
+class AreDCsOf (t :: k) (dcs :: k1 -> k0 -> *) where band_ :: W' t dcs p1 p0
+instance (WN dc ('KProxy :: KProxy k1 k0),
+          Codomain dc ~ t,
+          DC dc ('KProxy :: KProxy k1 k0))
+  => AreDCsOf (t :: k) (N (dc :: k) :: k1 -> k0 -> *) where
+  band_ = composeSymW' p (rejoin p) (unN p) where
+    p = Proxy :: Proxy ('KProxy :: KProxy k1 k0)
+instance (FoldPlusW' t ('KProxy :: KProxy k1 k0), AreDCsOf t l, AreDCsOf t r) => AreDCsOf t ((l :+: r) :: k1 -> k0 -> *) where band_ = foldPlusW' (Proxy :: Proxy ('KProxy :: KProxy k1 k0)) band_ band_
 
-band :: (AreDCsOf (t :: k) (DCs t)) => W' t (DCs t) p1 p0
-band = band_
+band :: AreDCsOf t (DCs t any) => Proxy (any :: KProxy k1 k0) -> W' t (DCs t any) (p1 :: k1) (p0 :: k0)
+band _ = band_
 
 embed :: (Codomain0 sub ~ Codomain0 sup, Embed sub sup) => sub p1 p0 -> sup p1 p0
 embed = TypeSums.embed
@@ -106,14 +111,15 @@ project = TypeSums.project0
 -- TODO need a MapSum just like MapRs, use a RPV for rep
 
 -- | @reps@ maps a disbanded data type to its sum-of-products representation.
-reps :: EachGeneric sum => sum p1 p0 -> EachRep sum p1 p0
+reps :: (EachGeneric sum, InvPrereq p1, InvPrereq p0) => sum p1 p0 -> EachRep sum p1 p0
 reps = repEach
 
-type family EachRep (sum :: * -> * -> *) :: * -> * -> *
-type instance EachRep (N a) = Rep a
+type family EachRep (sum :: k1 -> k0 -> *) :: k1 -> k0 -> *
+type instance EachRep (N a :: k1 -> k0 -> *) = Rep a ('KProxy :: KProxy k1 k0)
 type instance EachRep (a :+: b) = EachRep a :+: EachRep b
-class EachGeneric sum where repEach :: sum p1 p0 -> EachRep sum p1 p0
-instance (WN dc, Generic dc) => EachGeneric (N dc) where repEach = unSym rep unN
+class EachGeneric sum where repEach :: (InvPrereq p1, InvPrereq p0) => sum p1 p0 -> EachRep sum p1 p0
+instance (any ~ ('KProxy :: KProxy k1 k0), WN dc any, Generic dc any) => EachGeneric (N dc :: k1 -> k0 -> *) where
+  repEach = unSym p (rep p) (unN p) where p = Proxy :: Proxy ('KProxy :: KProxy k1 k0)
 instance (EachGeneric a, EachGeneric b) => EachGeneric (a :+: b) where repEach = mapPlus repEach repEach
 
 
@@ -132,12 +138,16 @@ instance (EachGeneric a, EachGeneric b) => EachGeneric (a :+: b) where repEach =
 --
 -- In this example, @C0_@, @C1_@, and @C2_@ are fields types. The other fields
 -- types for the same data type are handled with the @default@ function.
-precise_case0 :: (Codomain0 dcs ~ t, Codomain0 (DCs t) ~ t, DT t,
-                 Partition (DCs t) dcs (DCs t :-: dcs)) =>
-  ((DCs t :-: dcs) p1 p0 -> a) -> t -> (dcs p1 p0 -> a) -> a
-precise_case0 g x f = either f g $ partition $ unW0 disband x
-
+precise_case0 :: (Codomain0 dcs ~ t, Codomain0 (DCs t ('KProxy :: KProxy k1 k0)) ~ t, DT t ('KProxy :: KProxy k1 k0),
+                 Partition (DCs t ('KProxy :: KProxy k1 k0)) dcs ((DCs t ('KProxy :: KProxy k1 k0)) :-: dcs)) =>
+  (((DCs t ('KProxy :: KProxy k1 k0)) :-: dcs) p1 p0 -> a) -> t -> (dcs p1 p0 -> a) -> a
+precise_case0 g x f = either f g $ partition $ unW0 (disband p) x
+  where p = Proxy :: Proxy ('KProxy :: KProxy k1 k0)
 -- | @ig_from x =@ 'reps $ disband' @x@ is a convenience. It approximates the
 -- @instant-generics@ view, less the @CEq@ annotations.
-ig_from :: (ComposeW t, DT t, EachGeneric (DCs t)) => W t (EachRep (DCs t)) p1 p0
-ig_from = reps `composeW` disband
+ig_from :: (InvPrereq p1, InvPrereq p0,
+            ComposeW t ('KProxy :: KProxy k1 k0),
+            DT t ('KProxy :: KProxy k1 k0),
+            EachGeneric (DCs t ('KProxy :: KProxy k1 k0))) => W t (EachRep (DCs t ('KProxy :: KProxy k1 k0))) p1 p0
+ig_from = composeW (Proxy :: Proxy ('KProxy :: KProxy k1 k0)) reps (disband p)
+  where p = Proxy :: Proxy ('KProxy :: KProxy k1 k0)

@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, TypeFamilies, DataKinds #-}
+{-# LANGUAGE TemplateHaskell, TypeFamilies, DataKinds, PolyKinds, MultiParamTypeClasses #-}
 
 module Examples.MinCtors where
 

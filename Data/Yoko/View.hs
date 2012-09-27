@@ -47,9 +47,9 @@ type family Tag (dc :: k) :: Digit
 -- which case it just uses the left-most.
 type family Codomain (dc :: k) :: k
 
-type family Codomain0 (dcs :: * -> * -> *) :: *
-type family Codomain1 (dcs :: * -> * -> *) :: * -> *
-type family Codomain2 (dcs :: * -> * -> *) :: * -> * -> *
+type family Codomain0 (dcs :: k1 -> k0 -> *) :: *
+type family Codomain1 (dcs :: k1 -> k0 -> *) :: k0 -> *
+type family Codomain2 (dcs :: k1 -> k0 -> *) :: k1 -> k0 -> *
 type instance Codomain0 (N dc)    = Codomain dc
 type instance Codomain1 (N dc)    = Codomain dc
 type instance Codomain2 (N dc)    = Codomain dc
@@ -79,31 +79,32 @@ type instance SiblingDTs' t (RecDT l r) = Append l (t ': r)
 
 -- | Any fields type can be further represented as a product-of-fields and can
 -- be injected back into the original data type.
-class (Generic dc, DT (Codomain dc)) => DC dc where rejoin :: Sym dc (Codomain dc) p1 p0
+class (Generic dc any, DT (Codomain dc) any) => DC dc (any :: KProxy k1 k0) where
+  rejoin :: Proxy any -> Sym dc (Codomain dc) (p1 :: k1) (p0 :: k0)
 
 -- | The @DCs@ of a data type is sum of all of its fields types.
-type family DCs (t :: k) :: * -> * -> *
+type family DCs (t :: k) (any :: KProxy k1 k0) :: k1 -> k0 -> *
 -- | @DT@ disbands a data type.@
-class DT t where disband :: W t (DCs t) p1 p0
+class DT t (any :: KProxy k1 k0) where disband :: Proxy any -> W t (DCs t any) p1 p0
 
 
 
 -- take a representation, C or above and excluding Recs/Pars, to an actual *
 -- type
-type family Eval (r :: * -> * -> *) :: *
-type instance Eval (T0 Dep t)       = t
+type family Eval (r :: k1 -> k0 -> *) :: *
+type instance Eval (T0 (Dep t))       = t
 --type instance Eval Void           = ???
 type instance Eval (l :+: r)        = Eval l -- equivalently, Eval r
-type instance Eval (C  (dc :: *) r) = Codomain dc
-type instance Eval (N dc)           = Codomain dc
+type instance Eval (C (dc :: *) r)  = Codomain dc
+type instance Eval (N (dc :: *))    = Codomain dc
 
 
 
-data SubstSpec star = Sub0 star | Sub1 star | Sub10 star star
+{-data SubstSpec k0 k1 = Sub0 star | Sub1 star | Sub10 star star
 
 
 
-type family Subst (spec :: SubstSpec *) (r :: * -> * -> *) :: * -> * -> *
+type family Subst (spec :: SubstSpec *) (r :: k1 -> k0 -> *) :: k1 -> k0 -> *
 --type instance Subst spec Void  = ???
 type instance Subst spec (N dc)   = N dc
 type instance Subst spec (l :+: r) = Subst spec l :+: Subst spec r
@@ -112,8 +113,11 @@ type instance Subst spec (C dc r) = C dc (Subst spec r)
 type instance Subst spec U         = U
 type instance Subst spec (l :*: r) = Subst spec l :*: Subst spec r
 
-type instance Subst (Sub0  par0     ) Par0 = T0 Dep par0
-type instance Subst (Sub1  par1     ) Par0 = Par0
+type instance Subst (Sub0  par0     ) Par0_0 = T0 Dep par0
+type instance Subst (Sub1  par1     ) Par1_0 = Par0_0
+type instance Subst (Sub1  par1     ) (Par1_1 a) = Par0_1 (Subst (Sub1 par1) a)
+type instance Subst (Sub1  par1     ) (Par1_2 a b) = Par0_2 par1 (Subst (Sub1 par1) a)
+type instance Subst (Sub1  par1     ) Par1_2 = Par0_2
 type instance Subst (Sub10 par1 par0) Par0 = T0 Dep par0
 type instance Subst (Sub1  par1     ) Par1 = T0 Dep par1
 type instance Subst (Sub10 par1 par0) Par1 = T0 Dep par1
@@ -138,3 +142,4 @@ type instance Subst spec (T2 Dep f x y) = T2 Dep f (Subst spec x) (Subst spec y)
 type Subst0  t    p0 = Subst (Sub0 p0)     (Rep t)
 type Subst1  t p1    = Subst (Sub1 p1)     (Rep t)
 type Subst10 t p1 p0 = Subst (Sub10 p1 p0) (Rep t)
+-}

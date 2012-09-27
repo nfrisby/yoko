@@ -1,4 +1,6 @@
-{-# LANGUAGE TemplateHaskell, TypeFamilies, UndecidableInstances, DataKinds, TypeOperators, MagicHash #-}
+{-# LANGUAGE TemplateHaskell, TypeFamilies, UndecidableInstances, DataKinds, TypeOperators, MagicHash, PolyKinds, MultiParamTypeClasses, FlexibleInstances #-}
+
+{-# OPTIONS_GHC -ddump-splices #-}
 
 module Data.Yoko.MinCtorsTest where
 
@@ -17,7 +19,7 @@ import Data.Yoko.MinCtors.Prims1 ()
 
 
 
-
+{-
 yokoTH ''TyLit
 instance MinCtors TyLit
 
@@ -31,14 +33,14 @@ yokoTH ''ModName
 instance MinCtors ModName
 
 yokoTH_with (yokoDefaults {dcInsts = (List.\\ ['NameU, 'NameL])}) ''NameFlavour
-type instance Rep NameU_ = C NameU_ (T0 Dep Int)
-instance Generic NameU_ where
-  rep = W0  $ \(NameU_ x) -> C (T0 (Types.I# x))
-  obj = W'0 $ \(C (T0 (Types.I# x))) -> NameU_ x
-type instance Rep NameL_ = C NameL_ (T0 Dep Int)
-instance Generic NameL_ where
-  rep = W0  $ \(NameL_ x) -> C (T0 (Types.I# x))
-  obj = W'0 $ \(C (T0 (Types.I# x))) -> NameL_ x
+type instance Rep NameU_ any = C NameU_ (T0 Dep Int)
+instance Generic NameU_ any where
+  rep _ = W0  $ \(NameU_ x) -> C (T0 (Types.I# x))
+  obj _ = W'0 $ \(C (T0 (Types.I# x))) -> NameU_ x
+type instance Rep NameL_ any = C NameL_ (T0 Dep Int)
+instance Generic NameL_ any where
+  rep _ = W0  $ \(NameL_ x) -> C (T0 (Types.I# x))
+  obj _ = W'0 $ \(C (T0 (Types.I# x))) -> NameL_ x
 
 instance MinCtors NameFlavour
 
@@ -107,3 +109,12 @@ instance MinCtors Pat
 instance MinCtors Pragma
 instance MinCtors Range
 instance MinCtors Stmt
+-}
+
+
+
+newtype AtInt (f :: * -> *) (a :: *) = AtInt (f a)
+
+yokoTH ''AtInt
+
+instance MinCtors AtInt

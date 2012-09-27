@@ -1,62 +1,81 @@
-{-# LANGUAGE TypeOperators, LambdaCase, FlexibleContexts, UndecidableInstances, PolyKinds #-}
+{-# LANGUAGE Rank2Types, PolyKinds #-}
 
-module Data.Yoko.Invariant
-  (module Data.Yoko.Invariant, module Data.Functor.Invariant) where
+{-# LANGUAGE TypeFamilies, GADTs, ConstraintKinds, DataKinds #-}
 
-import Data.Yoko.W
-import Data.YokoRaw
+module Data.Yoko.Invariant where
 
-import Data.Functor.Invariant
+import GHC.Prim (Constraint)
 
 
 
-
-
-gen_invmap :: (Invariant2 (DCs t), DT t, AreDCsOf t (DCs t)) =>
-              (a -> b) -> (b -> a) -> t a -> t b
-gen_invmap f f' = unW'1 band . invmap2 id id f f' . unW1 disband
-
-gen_invmap2 :: (Invariant2 (DCs t), DT t, AreDCsOf t (DCs t)) =>
-               (a -> c) -> (c -> a) -> (b -> d) -> (d -> b) -> t a b -> t c d
-gen_invmap2 f f' g g' = unW'2 band . invmap2 f f' g g' . unW2 disband
+type family InvPrereq (t :: k) :: Constraint
+type instance InvPrereq (t :: ()) = ()
+type instance InvPrereq (t :: *) = ()
+type instance InvPrereq (t :: k0 -> *) = Invariant t
+type instance InvPrereq (t :: k1 -> k0 -> *) = Invariant2 t
 
 
 
+data family InvArg (t :: k) :: k -> *
+newtype instance InvArg (t :: *) s = InvArg0 (t -> s)
+data instance InvArg (t :: k0 -> *) s where
+  InvArg1 :: (Invariant t, Invariant s) => (forall p0. t p0 -> s p0) -> InvArg t s
+data instance InvArg (t :: k1 -> k0 -> *) s where
+  InvArg2 :: (Invariant2 t, Invariant2 s) => (forall p1 p0. t p1 p0 -> s p1 p0) -> InvArg t s
 
 
-instance Invariant2 U where
-  invmap2 _ _ _ _ _ = U
+class Invariant t where
+  invmap :: (InvPrereq a, InvPrereq b)
+            => InvArg a b -> InvArg b a -> t a -> t b
 
-instance (Invariant2 l, Invariant2 r) => Invariant2 (l :*: r) where
-  invmap2 f f' g g' (l :*: r) = invmap2 f f' g g' l :*: invmap2 f f' g g' r
+class Invariant2 t where
+  invmap2 :: (InvPrereq a, InvPrereq b, InvPrereq c, InvPrereq d)
+             => InvArg b d -> InvArg d b -> InvArg a c -> InvArg c a -> t b a -> t d c
 
-instance (Invariant2 r) => Invariant2 (C dc r) where
-  invmap2 f f' g g' (C x) = C $ invmap2 f f' g g' x
+instance Invariant []               where invmap (InvArg0 f) _ = fmap f
+instance Invariant Maybe            where invmap (InvArg0 f) _ = fmap f
+instance Invariant IO               where invmap (InvArg0 f) _ = fmap f
+instance Invariant (Either a)       where invmap (InvArg0 f) _ = fmap f
+instance Invariant ((->) a)         where invmap (InvArg0 f) _ = fmap f
+instance Invariant ((,,,,) a b c d) where invmap (InvArg0 f) _ (a, b, c, d, e) = (a, b, c, d, f e)
+instance Invariant ((,,,)  a b c)   where invmap (InvArg0 f) _ (a, b, c, d) = (a, b, c, f d)
+instance Invariant ((,,)   a b)     where invmap (InvArg0 f) _ (a, b, c) = (a, b, f c)
+instance Invariant ((,)    a)       where invmap (InvArg0 f) _ = fmap f
 
-
--- can optimize for * and * -> *, but I'm favoring terseness
-instance (WN dc, Invariant2 (Rep dc), Generic dc) => Invariant2 (N dc) where
-  invmap2 f f' g g'  = unSym nN obj . invmap2 f f' g g' . unSym rep unN
-
-instance (Invariant2 l, Invariant2 r) => Invariant2 (l :+: r) where
-  invmap2 f f' g g' = \case
-    L x -> L $ invmap2 f f' g g' x
-    R x -> R $ invmap2 f f' g g' x
-
-instance Invariant2 Void where invmap2 = error "invmap2 @Void"
-
-
-
-instance Invariant2 (T0 v t) where
-  invmap2 _ _ _ _ (T0 x) = T0 x
-
-instance (Invariant t, Invariant2 r) => Invariant2 (T1 v t r) where
-  invmap2 f f' g g' (T1 x) = T1 $ invmap (invmap2 f f' g g') (invmap2 f' f g' g) x
-
-instance (Invariant2 t, Invariant2 r, Invariant2 s) => Invariant2 (T2 v t r s) where
-  invmap2 f f' g g' (T2 x) = T2 $ invmap2 (invmap2 f f' g g') (invmap2 f' f g' g) (invmap2 f f' g g') (invmap2 f' f g' g) x
+instance Invariant2 Either         where invmap2 (InvArg0 f) _ (InvArg0 g) _ = either (Left . f) (Right . g)
+instance Invariant2 (->)           where invmap2 _ (InvArg0 f') (InvArg0 g) _ h = g . h . f'
+instance Invariant2 ((,,,,) a b c) where invmap2 (InvArg0 f) _ (InvArg0 g) _ (a, b, c, d, e) = (a, b, c, f d, g e)
+instance Invariant2 ((,,,)  a b)   where invmap2 (InvArg0 f) _ (InvArg0 g) _ (a, b, c, d) = (a, b, f c, g d)
+instance Invariant2 ((,,)   a)     where invmap2 (InvArg0 f) _ (InvArg0 g) _ (a, b, c) = (a, f b, g c)
+instance Invariant2 (,)            where invmap2 (InvArg0 f) _ (InvArg0 g) _ (a, b) = (f a, g b)
 
 
 
-instance Invariant2 Par1 where invmap2 f _ _ _ (Par1 x) = Par1 (f x)
-instance Invariant2 Par0 where invmap2 _ _ g _ (Par0 x) = Par0 (g x)
+
+
+{-
+type Sym' a b = forall p1 p0. Sym a b p1 p0
+
+class Invariant t where
+  invmap :: Sym' a b -> Sym' b a -> t a -> t b
+
+class Invariant2 t where
+  invmap2 :: Sym' a c -> Sym' c a -> Sym' b d -> Sym' d b -> t a b -> t c d
+
+instance Invariant []               where invmap (Sym0 f) _ = fmap f
+instance Invariant Maybe            where invmap (Sym0 f) _ = fmap f
+instance Invariant IO               where invmap (Sym0 f) _ = fmap f
+instance Invariant (Either a)       where invmap (Sym0 f) _ = fmap f
+instance Invariant ((->) a)         where invmap (Sym0 f) _ = fmap f
+instance Invariant ((,,,,) a b c d) where invmap (Sym0 f) _ (a, b, c, d, e) = (a, b, c, d, f e)
+instance Invariant ((,,,)  a b c)   where invmap (Sym0 f) _ (a, b, c, d) = (a, b, c, f d)
+instance Invariant ((,,)   a b)     where invmap (Sym0 f) _ (a, b, c) = (a, b, f c)
+instance Invariant ((,)    a)       where invmap (Sym0 f) _ = fmap f
+
+instance Invariant2 Either         where invmap2 (Sym0 f) _ (Sym0 g) _ = either (Left . f) (Right . g)
+instance Invariant2 (->)           where invmap2 _ (Sym0 f') (Sym0 g) _ h = g . h . f'
+instance Invariant2 ((,,,,) a b c) where invmap2 (Sym0 f) _ (Sym0 g) _ (a, b, c, d, e) = (a, b, c, f d, g e)
+instance Invariant2 ((,,,)  a b)   where invmap2 (Sym0 f) _ (Sym0 g) _ (a, b, c, d) = (a, b, f c, g d)
+instance Invariant2 ((,,)   a)     where invmap2 (Sym0 f) _ (Sym0 g) _ (a, b, c) = (a, f b, g c)
+instance Invariant2 (,)            where invmap2 (Sym0 f) _ (Sym0 g) _ (a, b) = (f a, g b)
+-}

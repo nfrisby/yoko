@@ -1,6 +1,6 @@
 {-# LANGUAGE DataKinds, TypeOperators, TypeFamilies, UndecidableInstances,
   DefaultSignatures, ViewPatterns, FlexibleContexts, FlexibleInstances,
-  PolyKinds, MultiParamTypeClasses, Rank2Types #-}
+  PolyKinds, MultiParamTypeClasses, Rank2Types, DataKinds #-}
 
 module Data.Yoko.MinCtors (MinCtors(..), gen_minCtors, nCtors) where
 
@@ -17,11 +17,17 @@ import qualified GHC.Real
 --------------------
 -- miscellaneous
 
-pDisband :: Proxy t -> Proxy (DCs t)
-pDisband _ = Proxy
+pDisband0 :: Proxy (t :: *) -> Proxy (DCs t ('KProxy :: KProxy () ()))
+pDisband0 _ = Proxy
 
-pRep :: Proxy t -> Proxy (Rep t)
-pRep _ = Proxy
+pDisband1 :: Proxy (t :: k0 -> *) -> Proxy (DCs t ('KProxy :: KProxy () k0))
+pDisband1 _ = Proxy
+
+pDisband2 :: Proxy (t :: k1 -> k0 -> *) -> Proxy (DCs t ('KProxy :: KProxy k1 k0))
+pDisband2 _ = Proxy
+
+pRepN :: Proxy (N dc :: k1 -> k0 -> *) -> Proxy (Rep dc ('KProxy :: KProxy k1 k0))
+pRepN _ = Proxy
 
 
 
@@ -63,24 +69,24 @@ nCtors' n _ = MMap.singleton (0, 0) $ Min n
 
 
 
-deApp :: Proxy (T1 v f r) -> (Proxy f, Proxy r)
-deApp _ = (Proxy, Proxy)
+deDep1 :: Proxy (T1 (Dep f) r) -> (Proxy f, Proxy r)
+deDep1 _ = (Proxy, Proxy)
 
-instance (Ord (CVec ts NRec), MinCtors f, MinInfoRec r ts) => MinInfoRec (T1 Dep f r) ts where
-  minInfoRec (deApp -> (pf, pr)) pts = minCtors pf `plug0` minInfoRec pr pts
+instance (Ord (CVec ts NRec), MinCtors f, MinInfoRec r ts) => MinInfoRec (T1 (Dep f) r) ts where
+  minInfoRec (deDep1 -> (pf, pr)) pts = minCtors pf `plug0` minInfoRec pr pts
 
-instance (MinCtors f, MinInfoNonRec r) => MinInfoNonRec (T1 Dep f r) where
-  minInfoNonRec (deApp -> (pf, pr)) = minCtors pf `plug0'` minInfoNonRec pr
+instance (MinCtors f, MinInfoNonRec r) => MinInfoNonRec (T1 (Dep f) r) where
+  minInfoNonRec (deDep1 -> (pf, pr)) = minCtors pf `plug0'` minInfoNonRec pr
 
-deApp2 :: Proxy (T2 v ff r1 r0) -> (Proxy ff, Proxy r1, Proxy r0)
-deApp2 _ = (Proxy, Proxy, Proxy)
+deDep2 :: Proxy (T2 (Dep ff) r1 r0) -> (Proxy ff, Proxy r1, Proxy r0)
+deDep2 _ = (Proxy, Proxy, Proxy)
 
-instance (Ord (CVec ts NRec), MinCtors ff, MinInfoRec rB ts, MinInfoRec rA ts) => MinInfoRec (T2 Dep ff rB rA) ts where
-  minInfoRec (deApp2 -> (ff, rB, rA)) pts =
+instance (Ord (CVec ts NRec), MinCtors ff, MinInfoRec rB ts, MinInfoRec rA ts) => MinInfoRec (T2 (Dep ff) rB rA) ts where
+  minInfoRec (deDep2 -> (ff, rB, rA)) pts =
     plug10 (minCtors ff) (minInfoRec rB pts) (minInfoRec rA pts)
 
-instance (MinCtors ff, MinInfoNonRec rB, MinInfoNonRec rA) => MinInfoNonRec (T2 Dep ff rB rA) where
-  minInfoNonRec (deApp2 -> (ff, rB, rA)) = plug10' (minCtors ff) (minInfoNonRec rB) (minInfoNonRec rA)
+instance (MinCtors ff, MinInfoNonRec rB, MinInfoNonRec rA) => MinInfoNonRec (T2 (Dep ff) rB rA) where
+  minInfoNonRec (deDep2 -> (ff, rB, rA)) = plug10' (minCtors ff) (minInfoNonRec rB) (minInfoNonRec rA)
 
 
 
@@ -89,13 +95,11 @@ instance MinInfoNonRec (Void t) where minInfoNonRec = nCtors' 0
 
 
 
-deN :: Proxy (N dc) -> Proxy dc
-deN _ = Proxy
+instance MinInfoRec (Rep dc ('KProxy :: KProxy k1 k0)) ts => MinInfoRec (N dc :: k1 -> k0 -> *) ts where
+  minInfoRec = minInfoRec . pRepN
 
-instance MinInfoRec (Rep dc) ts => MinInfoRec (N dc) ts where
-  minInfoRec = minInfoRec . pRep . deN
-instance MinInfoNonRec (Rep dc) => MinInfoNonRec (N dc) where
-  minInfoNonRec = minInfoNonRec . pRep . deN
+instance MinInfoNonRec (Rep dc ('KProxy :: KProxy k1 k0)) => MinInfoNonRec (N dc :: k1 -> k0 -> *) where
+  minInfoNonRec = minInfoNonRec . pRepN
 
 
 
@@ -135,56 +139,57 @@ instance (MinInfoNonRec l, MinInfoNonRec r) => MinInfoNonRec (l :*: r) where
 
 
 
-instance MinInfoNonRec Par1 where minInfoNonRec _ = MMap.singleton (1, 0) $ Min 0
-instance MinInfoNonRec Par0 where minInfoNonRec _ = MMap.singleton (0, 1) $ Min 0
-instance (VRepeat ts, MinInfoNonRec Par1) => MinInfoRec Par1 ts where
+instance MinInfoNonRec (T0 Par1) where minInfoNonRec _ = MMap.singleton (1, 0) $ Min 0
+instance MinInfoNonRec (T0 Par0) where minInfoNonRec _ = MMap.singleton (0, 1) $ Min 0
+instance (VRepeat ts, MinInfoNonRec (T0 Par1)) => MinInfoRec (T0 Par1) ts where
   minInfoRec p _ = minima1ToSiblingInT $ minInfoNonRec p
-instance (VRepeat ts, MinInfoNonRec Par0) => MinInfoRec Par0 ts where
+instance (VRepeat ts, MinInfoNonRec (T0 Par0)) => MinInfoRec (T0 Par0) ts where
   minInfoRec p _ = minima1ToSiblingInT $ minInfoNonRec p
 
 
 
-deRec0 :: Proxy (T0 (Rec lbl) t) -> Proxy lbl
+deRec0 :: Proxy (T0 (Rec lbl t)) -> Proxy lbl
 deRec0 _ = Proxy
 
-instance (IndexInto lbl ts, VRepeat ts) => MinInfoRec (T0 (Rec lbl) t) ts where
+instance (IndexInto lbl ts, VRepeat ts) => MinInfoRec (T0 (Rec lbl t)) ts where
   minInfoRec (deRec0 -> plbl) pts =
     MMap.singleton (cvUpd (cvRepeat 0) (indexInto plbl pts) $ \_ -> 1, 0, 0) $ Min 0
 
-deRec1 :: Proxy (T1 (Rec lbl) t r) -> Proxy lbl
+deRec1 :: Proxy (T1 (Rec lbl t) r) -> Proxy lbl
 deRec1 _ = Proxy
 
 -- TODO: how to support non-regular data types?
 
 -- NB only supports regular data types for now
-instance (IndexInto lbl ts, VRepeat ts) => MinInfoRec (T1 (Rec lbl) t Par0) ts where
+instance (IndexInto lbl ts, VRepeat ts) => MinInfoRec (T1 (Rec lbl t) (T0 Par0)) ts where
   minInfoRec (deRec1 -> plbl) pts =
     MMap.singleton (cvUpd (cvRepeat 0) (indexInto plbl pts) $ \_ -> 1, 0, 0) $ Min 0
 
-deRec2 :: Proxy (T2 (Rec lbl) t r s) -> Proxy lbl
+deRec2 :: Proxy (T2 (Rec lbl t) r s) -> Proxy lbl
 deRec2 _ = Proxy
 
 class Regularish r s where
-  regularish :: ((r ~ Par1, s ~ Par0) => a) -> ((r ~ Par0, s ~ Par1) => a) -> a
-instance Regularish Par1 Par0 where regularish x _ = x
-instance Regularish Par0 Par1 where regularish _ y = y
+  regularish :: ((r ~ (T0 Par1), s ~ (T0 Par0)) => a) -> ((r ~ (T0 Par0), s ~ (T0 Par1)) => a) -> a
+instance Regularish (T0 Par1) (T0 Par0) where regularish x _ = x
+instance Regularish (T0 Par0) (T0 Par1) where regularish _ y = y
 -- NB no other instances!
 
 -- NB only supports regularish data types for now
-instance (Regularish r s, IndexInto lbl ts, VRepeat ts) => MinInfoRec (T2 (Rec lbl) t r s) ts where
+instance (Regularish r s, IndexInto lbl ts, VRepeat ts) => MinInfoRec (T2 (Rec lbl t) r s) ts where
   minInfoRec (deRec2 -> plbl) pts =
     MMap.singleton (cvUpd (cvRepeat 0) (indexInto plbl pts) $ \_ -> 1, 0, 0) $ Min 0
 
 
 
-deDep0 :: Proxy (T0 v t) -> Proxy t
+deDep0 :: Proxy (T0 (Dep t)) -> Proxy t
 deDep0 _ = Proxy
 
-instance (VRepeat ts, MinInfoNonRec (T0 Dep t)) => MinInfoRec (T0 Dep t) ts where
+instance (VRepeat ts, MinCtors t, MinInfoNonRec (T0 (Dep t))) => MinInfoRec (T0 (Dep t)) ts where
   minInfoRec p _ = minima1ToSiblingInT $ minInfoNonRec p
 
-instance MinCtors t => MinInfoNonRec (T0 Dep t) where
+instance MinCtors t => MinInfoNonRec (T0 (Dep t)) where
   minInfoNonRec = maybe MMap.empty (MMap.singleton (0, 0) . Min) . minCtors . deDep0
+
 
 
 
@@ -196,17 +201,17 @@ pDTs _ = Proxy
 class MinCtorsTrim t where minCtorsTrim :: Proxy t -> Minima2 -> MinCtorsT t
 instance MinCtorsTrim (t :: *) where
   minCtorsTrim _ m = getMin `fmap` MMap.lookup (0, 0) m
-instance MinCtorsTrim (t :: * -> *) where
+instance MinCtorsTrim (t :: k0 -> *) where
   minCtorsTrim _ = MMap.mapWithMonoKeys (\(_, nP0) -> nP0) id
-instance MinCtorsTrim (t :: * -> * -> *) where minCtorsTrim _ = id
+instance MinCtorsTrim (t :: k1 -> k0 -> *) where minCtorsTrim _ = id
 
 gen_minCtors :: (MinCtorsTrim t, MinCtorsWorker t (DTs t)) => Proxy t -> MinCtorsT t
 gen_minCtors p = minCtorsTrim p $ method p (pDTs p)
 
 type family MinCtorsT (t :: k) :: *
 type instance MinCtorsT (t :: *) = Maybe Int
-type instance MinCtorsT (t :: * -> *) = Minima1
-type instance MinCtorsT (t :: * -> * -> *) = Minima2
+type instance MinCtorsT (t :: k0 -> *) = Minima1
+type instance MinCtorsT (t :: k1 -> k0 -> *) = Minima2
 
 class MinCtors t where
   minCtors :: Proxy t -> MinCtorsT t
@@ -218,7 +223,9 @@ class MinCtorsWorker t dpos where method :: Proxy t -> Proxy dpos -> Minima2
 pSiblingDTs :: Proxy t -> Proxy (SiblingDTs t)
 pSiblingDTs _ = Proxy
 
-instance MinInfoNonRec (DCs t) => MinCtorsWorker t NonRecDT where method pt _ = minInfoNonRec (pDisband pt)
+instance MinInfoNonRec (DCs t ('KProxy :: KProxy () ())) => MinCtorsWorker (t :: *) NonRecDT where method pt _ = minInfoNonRec (pDisband0 pt)
+instance MinInfoNonRec (DCs t ('KProxy :: KProxy () k0)) => MinCtorsWorker (t :: k0 -> *) NonRecDT where method pt _ = minInfoNonRec (pDisband1 pt)
+instance MinInfoNonRec (DCs t ('KProxy :: KProxy k1 k0)) => MinCtorsWorker (t :: k1 -> k0 -> *) NonRecDT where method pt _ = minInfoNonRec (pDisband2 pt)
 
 pIndex :: Proxy (RecDT l r) -> Proxy (Length l)
 pIndex _ = Proxy
@@ -229,18 +236,50 @@ instance (IndexInto (Length l) (SiblingDTs t),
           VRepeat (SiblingDTs t),
           VEnum (SiblingDTs t),
           Eq (CVec (SiblingDTs t) Minima2),
-          MinInfoRec (DCs t) (SiblingDTs t)) => MinCtorsWorker t (RecDT l r) where
+          MinInfoRec (DCs t ('KProxy :: KProxy k1 k0)) (SiblingDTs t)) => MinCtorsWorker (t :: *) (RecDT l r) where
   method pt pdpos = (`cvAt` indexInto (pIndex pdpos) psibs) $ solve_sibling_set' $
                     cvInitialize (pcon psibs) minInfo__
     where psibs = pSiblingDTs pt
           pcon :: Proxy ts -> Proxy (MinInfo__ ts)
           pcon _ = Proxy
 
-class    (MinInfoRec (DCs t) ts, ts ~ SiblingDTs t) => MinInfo__ ts t
-instance (MinInfoRec (DCs t) ts, ts ~ SiblingDTs t) => MinInfo__ ts t
+instance (IndexInto (Length l) (SiblingDTs t),
+          VInitialize (MinInfo__ (SiblingDTs t)) (SiblingDTs t),
+          VFunctor (SiblingInC (SiblingDTs t)) (SiblingDTs t),
+          VRepeat (SiblingDTs t),
+          VEnum (SiblingDTs t),
+          Eq (CVec (SiblingDTs t) Minima2),
+          MinInfoRec (DCs t ('KProxy :: KProxy k1 k0)) (SiblingDTs t)) => MinCtorsWorker (t :: k0 -> *) (RecDT l r) where
+  method pt pdpos = (`cvAt` indexInto (pIndex pdpos) psibs) $ solve_sibling_set' $
+                    cvInitialize (pcon psibs) minInfo__
+    where psibs = pSiblingDTs pt
+          pcon :: Proxy ts -> Proxy (MinInfo__ ts)
+          pcon _ = Proxy
 
-minInfo__ :: MinInfo__ ts t => Proxy t -> SiblingInT ts
-minInfo__ p = minInfoRec (pDisband p) (pSiblingDTs p)
+instance (IndexInto (Length l) (SiblingDTs t),
+          VInitialize (MinInfo__ (SiblingDTs t)) (SiblingDTs t),
+          VFunctor (SiblingInC (SiblingDTs t)) (SiblingDTs t),
+          VRepeat (SiblingDTs t),
+          VEnum (SiblingDTs t),
+          Eq (CVec (SiblingDTs t) Minima2),
+          MinInfoRec (DCs t ('KProxy :: KProxy k1 k0)) (SiblingDTs t)) => MinCtorsWorker (t :: k1 -> k0 -> *) (RecDT l r) where
+  method pt pdpos = (`cvAt` indexInto (pIndex pdpos) psibs) $ solve_sibling_set' $
+                    cvInitialize (pcon psibs) minInfo__
+    where psibs = pSiblingDTs pt
+          pcon :: Proxy ts -> Proxy (MinInfo__ ts)
+          pcon _ = Proxy
+
+class    (ts ~ SiblingDTs t) => MinInfo__ ts t where
+  minInfo__ :: Proxy t -> SiblingInT ts
+
+instance (MinInfoRec (DCs t ('KProxy :: KProxy () ())) ts, ts ~ SiblingDTs t) => MinInfo__ ts (t :: *) where
+  minInfo__ p = minInfoRec (pDisband0 p) (pSiblingDTs p)
+
+instance (MinInfoRec (DCs t ('KProxy :: KProxy () k0)) ts, ts ~ SiblingDTs t) => MinInfo__ ts (t :: k0 -> *) where
+  minInfo__ p = minInfoRec (pDisband1 p) (pSiblingDTs p)
+
+instance (MinInfoRec (DCs t ('KProxy :: KProxy k1 k0)) ts, ts ~ SiblingDTs t) => MinInfo__ ts (t :: k1 -> k0 -> *) where
+  minInfo__ p = minInfoRec (pDisband2 p) (pSiblingDTs p)
 
 
 
@@ -350,6 +389,9 @@ instance MinCtors a => MinCtors (Odd  a)
 -- usages
 instance MinCtors Bool
 instance MinCtors ()
+
+-- NB the (yokoTH ''Proxy) splice fails
+instance MinCtors Proxy where minCtors = nCtors 1
 
 instance MinCtors (,)
 instance MinCtors a => MinCtors ((,) a)
