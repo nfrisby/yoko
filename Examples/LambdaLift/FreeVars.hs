@@ -46,7 +46,7 @@ class FreeVars2 a where freeVars2 :: a (p1 :: *) (p0 :: *) -> Frees
 
 instance FreeVars ULC where
   freeVars = w where
-    w tm = case partition $ unW0 disband tm of
+    w tm = case partition $ disband $ W0 tm of
       Left x -> ($ x) $
         (\(Lam_ _ty tm) -> bump 1 $ w tm) .||
         (\(Var_ i) -> IS.singleton i) .|.
@@ -59,8 +59,8 @@ instance FreeVars ULC where
 --  freeVars = freeVars . unDCsOf
 instance (FreeVars2 a, FreeVars2 b) => FreeVars2 (a :+: b) where
   freeVars2 = foldPlus freeVars2 freeVars2
-instance (WN dc, Generic dc, FreeVars2 (Rep dc)) => FreeVars2 (N dc) where
-  freeVars2 = freeVars2 . unSym rep unN
+instance (Generic dc, FreeVars2 (Rep dc)) => FreeVars2 (N dc) where
+  freeVars2 = freeVars2 . rep . unN
 
 -- through products
 instance FreeVars2 U where freeVars2 = const IS.empty

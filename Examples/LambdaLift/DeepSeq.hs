@@ -25,18 +25,18 @@ import Data.Bifunctor
 class DeepSeq0 a where
   rnf0 :: a       -> ()
   default rnf0 :: (DeepSeq2 (DCs a), DT a) => a -> ()
-  rnf0 = rnf2 . unW0 disband
+  rnf0 = rnf2 . disband . W0
 class DeepSeq1 a where
   rnf1 :: a    () -> ()
   default rnf1 :: (DeepSeq2 (DCs a), DT a) => a () -> ()
-  rnf1 = rnf2 . unW1 disband
+  rnf1 = rnf2 . disband . W1
 class DeepSeq2 a where
   rnf2 :: a () () -> ()
   default rnf2 :: (DeepSeq2 (DCs a), DT a) => a () () -> ()
-  rnf2 = rnf2 . unW2 disband
+  rnf2 = rnf2 . disband . W2
 
-instance (WN a, DeepSeq2 (Rep a), Generic a) => DeepSeq2 (N a) where
-  rnf2 = rnf2 . unSym rep unN
+instance (DeepSeq2 (Rep a), Generic a) => DeepSeq2 (N a) where
+  rnf2 = rnf2 . rep . unN
 instance (DeepSeq2 a, DeepSeq2 b) => DeepSeq2 (a :+: b) where
   rnf2 = foldPlus rnf2 rnf2
 

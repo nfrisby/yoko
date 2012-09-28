@@ -30,11 +30,8 @@ module Data.Yoko.Representation
    Rep, Generic(..),
    -- ** Auxilliaries
    unC, foldC, mapC,
-   WN(..),
-   unN0, foldN0, mapN0,
-   unN1, foldN1, mapN1,
-   unN2, foldN2, mapN2,
-   foldPlus, FoldPlusW'(..), mapPlus,
+   unN, foldN, mapN,
+   foldPlus, mapPlus,
    foldTimes, mapTimes,
    unT0, mapT0,
    unT1, mapT1,
@@ -69,10 +66,7 @@ data (:*:) a b (p1 :: *) (p0 :: *) = a p1 p0 :*: b p1 p0
 data Void (p1 :: *) (p0 :: *)
 
 -- | The singleton sum.
-data family N (dc :: k) :: * -> * -> *
-newtype instance N dc (p1 :: *) (p0 :: *) = N0  dc
-newtype instance N dc (p1 :: *) (p0 :: *) = N1 (dc    p0)
-newtype instance N dc (p1 :: *) (p0 :: *) = N2 (dc p1 p0)
+newtype N (dc :: k) (p1 :: *) (p0 :: *) = N (W dc p1 p0)
 
 infixl 6 :+:
 -- | Sum union.
@@ -102,17 +96,9 @@ type family Rep (t :: k) :: * -> * -> *
 
 -- | Converts between a fields type and its product-of-fields structure.
 class Generic dc where
-  rep :: W dc (Rep dc) p1 p0; obj :: W' dc (Rep dc) p1 p0
+  rep :: W   dc p1 p0 -> Rep dc p1 p0
+  obj :: Rep dc p1 p0 -> W   dc p1 p0
 
-
-
-
-class ComposeW dc => WN dc where
-  nN  :: W  dc (N dc) p1 p0
-  unN :: W' dc (N dc) p1 p0
-instance WN (dc :: *)           where nN = W0 N0; unN = W'0 unN0
-instance WN (dc :: * -> *)      where nN = W1 N1; unN = W'1 unN1
-instance WN (dc :: * -> * -> *) where nN = W2 N2; unN = W'2 unN2
 
 unT0 (T0 x) = x
 mapT0 f (T0 x) = T0 (f x)
@@ -135,27 +121,13 @@ unC (C x) = x
 foldC f = f . unC
 mapC f = foldC (C . f)
 
-unN0 (N0 x) = x
-foldN0 f = f . unN0
+unN (N x) = x
+foldN f = f . unN
 
-unN1 (N1 x) = x
-foldN1 f = f . unN1
-
-unN2 (N2 x) = x
-foldN2 f = f . unN2
-
-mapN0 f = N0 . foldN0 f
-mapN1 f = N1 . foldN1 f
-mapN2 f = N2 . foldN2 f
+mapN f = N . foldN f
 
 foldPlus f g x = case x of
   L x -> f x   ;   R x -> g x
-
-class FoldPlusW' (s :: k) where
-  foldPlusW' :: W' s l p1 p0 -> W' s r p1 p0 -> W' s (l :+: r) p1 p0
-instance FoldPlusW' (s :: *) where foldPlusW' (W'0 f) (W'0 g) = W'0 $ foldPlus f g
-instance FoldPlusW' (s :: * -> *) where foldPlusW' (W'1 f) (W'1 g) = W'1 $ foldPlus f g
-instance FoldPlusW' (s :: * -> * -> *) where foldPlusW' (W'2 f) (W'2 g) = W'2 $ foldPlus f g
 
 mapPlus f g = foldPlus (L . f) (R . g)
 

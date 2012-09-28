@@ -105,12 +105,6 @@ import Data.Record.Combinators ((!!!))
 
 
 
-w0' :: (t p1 p0 -> s      ) -> W' s t p1 p0; w0' = W'0
-w1' :: (t p1 p0 -> s    p0) -> W' s t p1 p0; w1' = W'1
-w2' :: (t p1 p0 -> s p1 p0) -> W' s t p1 p0; w2' = W'2
-
-
-
 
 
 convert r = R.convert $ R.withStyle r (Id KindStar)
@@ -441,15 +435,10 @@ yoko2 activated (convert -> X :&
   ConName      := n :&
   ConFields    := fields
         ) = do
-  let nW_rejoin = case length pars of
-        0 -> 'Sym0
-        1 -> 'Sym1
-        2 -> 'Sym2
-
-  let (nW_rep, nW_obj) = case length pars of
-        0 -> ('W0, 'w0')
-        1 -> ('W1, 'w1')
-        2 -> ('W2, 'w2')
+  let (nFoldW, nUnFoldW, nMapW) = case length pars of
+        0 -> ('foldW0, 'unfoldW0, 'mapW0)
+        1 -> ('foldW1, 'unfoldW1, 'mapW1)
+        2 -> ('foldW2, 'unfoldW2, 'mapW2)
 
   let n' = rn n   ;   fd = applyConT2TVBs n' tvbs
 
@@ -459,7 +448,7 @@ yoko2 activated (convert -> X :&
      TySynInstD ''Tag   [fd] $ encode $ TH.nameBase n,
      InstanceD cxt (ConT ''DC `AppT` fd)
        [let (pat, exp) = pat_exp n' n $ length fields
-        in simpleVal 'rejoin $ ConE nW_rejoin `AppE` LamE [pat] exp]
+        in simpleVal 'rejoin $ VarE nMapW `AppE` LamE [pat] exp]
     ]
 
   -- declare the Rep and Generic RHSs
@@ -491,8 +480,8 @@ yoko2 activated (convert -> X :&
     return
       [ TySynInstD ''Rep [fd] (ConT ''C `AppT` fd `AppT` repTy),
         InstanceD cxt (ConT ''Generic `AppT` fd)
-        [simpleVal 'rep $ (ConE nW_rep `AppE`) $ LamE [ConP n' (repP conRO)] $ ConE 'C `AppE` repE conRO,
-         simpleVal 'obj $ (VarE nW_obj `AppE`) $ LamE [ConP 'C [objP conRO]] $ foldl AppE (ConE n') $ objE conRO]]
+        [simpleVal 'rep $ (VarE nFoldW   `AppE`) $ LamE [ConP n' (repP conRO)] $ ConE 'C `AppE` repE conRO,
+         simpleVal 'obj $ (VarE nUnFoldW `AppE`) $ LamE [ConP 'C [objP conRO]] $ foldl AppE (ConE n') $ objE conRO]]
 
 -- generate DCs/DT instances
 yoko3 r@(convert -> X :&
@@ -506,10 +495,10 @@ yoko3 r@(convert -> X :&
   TargetTVBs   := tvbs :&
   TargetCxt    := cxt
         ) = do
-  let (nW_disband, nNCtor) = case length pars of
-        0 -> ('W0, 'N0)
-        1 -> ('W1, 'N1)
-        2 -> ('W2, 'N2)
+  let (nFoldW, nW) = case length pars of
+        0 -> ('foldW0, 'W0)
+        1 -> ('foldW1, 'W1)
+        2 -> ('foldW2, 'W2)
 
   let invInst = case length pars of
         0 -> Nothing
@@ -528,14 +517,14 @@ yoko3 r@(convert -> X :&
        fields <- length `fmap` conFields con
        return $ let n = conName con
                 in (ConT ''N `AppT` applyConT2TVBs (rn n) tvbs,
-                    [(ConE nNCtor, (n, fields))]))
+                    [(ConE 'N `compose` ConE nW, (n, fields))]))
 
   matches <- return $ flip map cases $ \(inj, (n, fds)) ->
     let (pat, exp) = pat_exp n (rn n) fds
     in Match pat (NormalB $ inj `AppE` exp) []
   generate $ [TySynInstD ''DCs [ty] dcs,
               InstanceD cxt (ConT ''DT `AppT` ty)
-                [simpleVal 'disband $ (ConE nW_disband `AppE`) $ LamCaseE matches]]
+                [simpleVal 'disband $ (VarE nFoldW `AppE`) $ LamCaseE matches]]
 
   when invInsts $ flip (maybe (return ())) invInst $ \(cls, method, rhs) ->
     generate [InstanceD cxt (ConT cls `AppT` ty) [ValD (VarP method) (NormalB (VarE rhs)) []]]

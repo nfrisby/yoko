@@ -14,11 +14,11 @@ import Data.Functor.Invariant
 
 gen_invmap :: (Invariant2 (DCs t), DT t, AreDCsOf t (DCs t)) =>
               (a -> b) -> (b -> a) -> t a -> t b
-gen_invmap f f' = unW'1 band . invmap2 id id f f' . unW1 disband
+gen_invmap f f' = unW1 . band . invmap2 id id f f' . disband . W1
 
 gen_invmap2 :: (Invariant2 (DCs t), DT t, AreDCsOf t (DCs t)) =>
                (a -> c) -> (c -> a) -> (b -> d) -> (d -> b) -> t a b -> t c d
-gen_invmap2 f f' g g' = unW'2 band . invmap2 f f' g g' . unW2 disband
+gen_invmap2 f f' g g' = unW2 . band . invmap2 f f' g g' . disband . W2
 
 
 
@@ -35,8 +35,8 @@ instance (Invariant2 r) => Invariant2 (C dc r) where
 
 
 -- can optimize for * and * -> *, but I'm favoring terseness
-instance (WN dc, Invariant2 (Rep dc), Generic dc) => Invariant2 (N dc) where
-  invmap2 f f' g g'  = unSym nN obj . invmap2 f f' g g' . unSym rep unN
+instance (Invariant2 (Rep dc), Generic dc) => Invariant2 (N dc) where
+  invmap2 f f' g g'  = mapN $ obj . invmap2 f f' g g' . rep
 
 instance (Invariant2 l, Invariant2 r) => Invariant2 (l :+: r) where
   invmap2 f f' g g' = \case

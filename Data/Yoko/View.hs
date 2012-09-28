@@ -79,12 +79,13 @@ type instance SiblingDTs' t (RecDT l r) = Append l (t ': r)
 
 -- | Any fields type can be further represented as a product-of-fields and can
 -- be injected back into the original data type.
-class (Generic dc, DT (Codomain dc)) => DC dc where rejoin :: Sym dc (Codomain dc) p1 p0
+class (Generic dc, DT (Codomain dc)) => DC dc where
+  rejoin :: W dc p1 p0 -> W (Codomain dc) p1 p0
 
 -- | The @DCs@ of a data type is sum of all of its fields types.
 type family DCs (t :: k) :: * -> * -> *
 -- | @DT@ disbands a data type.@
-class DT t where disband :: W t (DCs t) p1 p0
+class DT t where disband :: W t p1 p0 -> DCs t p1 p0
 
 
 

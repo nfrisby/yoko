@@ -87,7 +87,9 @@ instance (Generic dcA, Match (N dcB) ~ WithMessage dcA b (FindDCs (Tag dcA) (DCs
           DC dcB, Codomain dcB ~ b, DT b
          ) => HCompos0 cnv (N dcA) b where
   hcompos0 cnv =
-    foldN0 $ liftA (unSym0 rejoin . (id :: dcB -> dcB) . unW'0 obj) . mapRs0 cnv msgp p1 p2 . unW0 rep
+    foldN $ liftA (unW0 . rejoin .
+                   (id :: forall p1 p0. W dcB p1 p0 -> W dcB p1 p0) .
+                   obj) . mapRs0 cnv msgp p1 p2 . rep
     where p1 :: Proxy dcA; p1 = Proxy; p2 :: Proxy dcB; p2 = Proxy
           msgp = ResultsInIncompatibleFields :: ResultsInIncompatibleFields dcA dcB
 

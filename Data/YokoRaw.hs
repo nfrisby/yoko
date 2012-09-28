@@ -41,11 +41,10 @@ import qualified Data.Yoko.TypeSums as TypeSums
 --import Data.Yoko.Each
 
 
-
 -- | @one@ extends a function that consumes a fields type to a function that
 -- consumes a disbanded data type containing just that fields type.
 one :: (dc -> a) -> N dc p1 p0 -> a
-one = foldN0
+one = foldN . foldW0
 
 infixl 6 |||
 -- | Combines two functions that consume disbanded data types into a function
@@ -74,13 +73,14 @@ disbanded = TypeSums.inject0
 --
 -- Since 'DCs' is a type family, it's the range of @band@ that determines the
 -- @t@ type variable.
-class AreDCsOf (t :: k) (dcs :: * -> * -> *) where band_ :: W' t dcs p1 p0
-instance (WN dc, Codomain dc ~ t, DC dc) => AreDCsOf t (N dc) where
-  band_ = composeSymW' rejoin unN
-instance (FoldPlusW' t, AreDCsOf t l, AreDCsOf t r) => AreDCsOf t (l :+: r) where band_ = foldPlusW' band_ band_
+class AreDCsOf (t :: k) (dcs :: * -> * -> *) where band_ :: dcs p1 p0 -> W t p1 p0
+instance (Codomain dc ~ t, DC dc) => AreDCsOf t (N dc) where
+  band_ = rejoin . unN
+instance (AreDCsOf t l, AreDCsOf t r) => AreDCsOf t (l :+: r) where band_ = foldPlus band_ band_
 
-band :: (AreDCsOf (t :: k) (DCs t)) => W' t (DCs t) p1 p0
+band :: (AreDCsOf t (DCs t)) => DCs t p1 p0 -> W t p1 p0
 band = band_
+
 
 embed :: (Codomain0 sub ~ Codomain0 sup, Embed sub sup) => sub p1 p0 -> sup p1 p0
 embed = TypeSums.embed
@@ -113,7 +113,7 @@ type family EachRep (sum :: * -> * -> *) :: * -> * -> *
 type instance EachRep (N a) = Rep a
 type instance EachRep (a :+: b) = EachRep a :+: EachRep b
 class EachGeneric sum where repEach :: sum p1 p0 -> EachRep sum p1 p0
-instance (WN dc, Generic dc) => EachGeneric (N dc) where repEach = unSym rep unN
+instance (Generic dc) => EachGeneric (N dc) where repEach = rep . unN
 instance (EachGeneric a, EachGeneric b) => EachGeneric (a :+: b) where repEach = mapPlus repEach repEach
 
 
@@ -135,9 +135,9 @@ instance (EachGeneric a, EachGeneric b) => EachGeneric (a :+: b) where repEach =
 precise_case0 :: (Codomain0 dcs ~ t, Codomain0 (DCs t) ~ t, DT t,
                  Partition (DCs t) dcs (DCs t :-: dcs)) =>
   ((DCs t :-: dcs) p1 p0 -> a) -> t -> (dcs p1 p0 -> a) -> a
-precise_case0 g x f = either f g $ partition $ unW0 disband x
+precise_case0 g x f = either f g $ partition $ disband $ W0 x
 
 -- | @ig_from x =@ 'reps $ disband' @x@ is a convenience. It approximates the
 -- @instant-generics@ view, less the @CEq@ annotations.
-ig_from :: (ComposeW t, DT t, EachGeneric (DCs t)) => W t (EachRep (DCs t)) p1 p0
-ig_from = reps `composeW` disband
+ig_from :: (DT t, EachGeneric (DCs t)) => W t p1 p0 -> EachRep (DCs t) p1 p0
+ig_from = reps . disband

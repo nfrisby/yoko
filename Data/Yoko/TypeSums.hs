@@ -23,6 +23,7 @@ module Data.Yoko.TypeSums (DistMaybePlus, (:-:),
                            Embed, embed, inject0, inject1, inject2,
                            Partition, project0, project1, project2, partition) where
 
+import Data.Yoko.W
 import Data.Yoko.TypeBasics
 import Data.Yoko.Representation
 
@@ -39,13 +40,13 @@ embed :: Embed sub sup => sub p1 p0 -> sup p1 p0
 embed = embed_
 
 inject0 :: Embed (N a) sum => a -> sum p1 p0
-inject0 = embed . N0
+inject0 = embed . N . W0
 
 inject1 :: Embed (N a) sum => a p0 -> sum p1 p0
-inject1 = embed . N1
+inject1 = embed . N . W1
 
 inject2 :: Embed (N a) sum => a p1 p0 -> sum p1 p0
-inject2 = embed . N2
+inject2 = embed . N . W2
 
 
 
@@ -56,13 +57,13 @@ partition :: Partition sup sub (sup :-: sub) =>
 partition = partition_
 
 project0 :: Partition sum (N a) (sum :-: N a) => sum p1 p0 -> Either a ((sum :-: N a) p1 p0)
-project0 = left unN0 . partition_
+project0 = left (unW0 . unN) . partition_
 
 project1 :: Partition sum (N a) (sum :-: N a) => sum p1 p0 -> Either (a p0) ((sum :-: N a) p1 p0)
-project1 = left unN1 . partition_
+project1 = left (unW1 . unN) . partition_
 
 project2 :: Partition sum (N a) (sum :-: N a) => sum p1 p0 -> Either (a p1 p0) ((sum :-: N a) p1 p0)
-project2 = left unN2 . partition_
+project2 = left (unW2 . unN) . partition_
 
 
 
