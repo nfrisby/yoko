@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators, LambdaCase, FlexibleContexts, UndecidableInstances, PolyKinds #-}
+{-# LANGUAGE TypeOperators, FlexibleContexts, UndecidableInstances, PolyKinds #-}
 
 module Data.Yoko.Invariant
   (module Data.Yoko.Invariant, module Data.Functor.Invariant) where
@@ -39,9 +39,7 @@ instance (Invariant2 (Rep dc), Generic dc) => Invariant2 (N dc) where
   invmap2 f f' g g'  = mapN $ obj . invmap2 f f' g g' . rep
 
 instance (Invariant2 l, Invariant2 r) => Invariant2 (l :+: r) where
-  invmap2 f f' g g' = \case
-    L x -> L $ invmap2 f f' g g' x
-    R x -> R $ invmap2 f f' g g' x
+  invmap2 f f' g g' = mapPlus (invmap2 f f' g g') (invmap2 f f' g g')
 
 instance Invariant2 Void where invmap2 = error "invmap2 @Void"
 

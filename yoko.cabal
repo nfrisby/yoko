@@ -114,6 +114,8 @@ library
     Data.Yoko.Invariant,
     Data.Yoko.Foldable,
     Data.Yoko.Twin,
+    Data.Yoko.Traversable,
+    Data.Yoko.Compos,
 
     Data.Yoko.TypeBasics, Data.Yoko.W,
 
