@@ -112,6 +112,8 @@ library
     Data.YokoRaw, Data.Yoko.HCompos, Data.Yoko.TH,
 
     Data.Yoko.Invariant,
+    Data.Yoko.Foldable,
+    Data.Yoko.Twin,
 
     Data.Yoko.TypeBasics, Data.Yoko.W,
 
