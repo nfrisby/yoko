@@ -352,7 +352,10 @@ fieldRO maps bg parNs = w' where
 
   checkRec n tys container importants = case case bg of Left _ -> Nothing; Right bg -> Map.lookup n bg of
     Just lbl -> case lbl of
-      Nothing -> Int.thFail "impossible: expandSyn has already been executed."
+      -- the RHS of the synonym contains recursive occurrences
+      Nothing -> expandSyn (ConT n) tys >>= \case
+        Just (ty, tys) -> w ty tys
+        Nothing -> Int.thFail "impossible: a synonym identified by SCC analysis did not expand."
       Just lbl -> appliedVariety (PromotedT 'Rec `AppT` toNat lbl `AppT `container) tys'
         where (foldl AppT (ConT n) -> container, tys') =
                 List.splitAt (length tys - length parNs) tys
