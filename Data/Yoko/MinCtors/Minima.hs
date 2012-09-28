@@ -6,7 +6,9 @@ module Data.Yoko.MinCtors.Minima
    DTsCVec, SumInfo, SC_SumInfo,
    SiblingInT, SiblingInC, addMinima2, addSiblingInTs,
    solve_sibling_set, solve_sibling_set',
-   plug10, plug0, plug10', plug0') where
+   plug10, plug0, plug10', plug0',
+   cleanUp
+  ) where
 
 import Data.Yoko.TypeBasics
 
@@ -89,7 +91,7 @@ solve_sibling_set = solve_sibling_set' . homogenize
 
 solve_sibling_set' ::
   (Eq (CVec ts Minima2), VRepeat ts, VEnum ts) => CVec ts (SiblingInT ts) -> Work ts
-solve_sibling_set' table = chaotic (step table) $ initialize table
+solve_sibling_set' table = fmap cleanUp $ chaotic (step table) $ initialize table
 
 -- 1) start with the smallest non-recursive ctors
 
@@ -163,3 +165,24 @@ plug0' f s0 = flip MMap.foldMap f $ \np0 (Min k) ->
 plug10' :: Minima2 -> Minima2 -> Minima2 -> Minima2
 plug10' f s1 s0 = flip MMap.foldMap f $ \(np1, np0) (Min k) ->
   MMap.map (fmap (+k)) $ scale np1 s1 `addMinima2` scale np0 s0
+
+
+
+
+
+-- minimize each dimension with respect to all possible values of the others;
+-- eg WRT the n0 dimension, ((1, 0), Min 3) always bests ((1, 1), Min 3), so
+-- eliminate the second one
+cleanUp :: Minima2 -> Minima2
+cleanUp = MMap.fromList . chaotic step . MMap.toList where
+  step :: [((Int, Int), Min Int)] -> [((Int, Int), Min Int)]
+  step minK = filter (`elem` min0) min1 {- NB symmetric in min0 and min1 -}
+    where
+      -- fix all but n1
+      min1 = map (\((p0, k), Min p1) -> ((p1, p0), Min k)) $
+             MMap.toList $ MMap.fromList $
+             map (\((p1, p0), Min k) -> ((p0, k), Min p1)) minK
+      -- fix all but n0
+      min0 = map (\((p1, k), Min p0) -> ((p1, p0), Min k)) $
+             MMap.toList $ MMap.fromList $
+             map (\((p1, p0), Min k) -> ((p1, k), Min p0)) minK

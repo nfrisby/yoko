@@ -44,3 +44,9 @@ mapWithMonoKeys fk fv (MMap m) =
 
 lookup :: Ord k => k -> MMap k f v -> Maybe (f v)
 lookup k (MMap m) = Map.lookup k m
+
+fromList :: (Ord k, Semigroup (f v)) => [(k, f v)] -> MMap k f v
+fromList = F.foldMap (uncurry singleton)
+
+toList :: MMap k f v -> [(k, f v)]
+toList (MMap m) = Map.toList m

@@ -193,16 +193,6 @@ instance MinCtors t => MinInfoNonRec (T0 Dep t) where
 pDTs :: Proxy t -> Proxy (DTs t)
 pDTs _ = Proxy
 
-class MinCtorsTrim t where minCtorsTrim :: Proxy t -> Minima2 -> MinCtorsT t
-instance MinCtorsTrim (t :: *) where
-  minCtorsTrim _ m = getMin `fmap` MMap.lookup (0, 0) m
-instance MinCtorsTrim (t :: * -> *) where
-  minCtorsTrim _ = MMap.mapWithMonoKeys (\(_, nP0) -> nP0) id
-instance MinCtorsTrim (t :: * -> * -> *) where minCtorsTrim _ = id
-
-gen_minCtors :: (MinCtorsTrim t, MinCtorsWorker t (DTs t)) => Proxy t -> MinCtorsT t
-gen_minCtors p = minCtorsTrim p $ method p (pDTs p)
-
 type family MinCtorsT (t :: k) :: *
 type instance MinCtorsT (t :: *) = Maybe Int
 type instance MinCtorsT (t :: * -> *) = Minima1
@@ -213,12 +203,24 @@ class MinCtors t where
   default minCtors :: (MinCtorsTrim t, MinCtorsWorker t (DTs t)) => Proxy t -> MinCtorsT t
   minCtors = gen_minCtors
 
+class MinCtorsTrim t where minCtorsTrim :: Proxy t -> Minima2 -> MinCtorsT t
+instance MinCtorsTrim (t :: *) where
+  minCtorsTrim _ m = getMin `fmap` MMap.lookup (0, 0) m
+instance MinCtorsTrim (t :: * -> *) where
+  minCtorsTrim _ = MMap.mapWithMonoKeys (\(_, nP0) -> nP0) id
+instance MinCtorsTrim (t :: * -> * -> *) where minCtorsTrim _ = id
+
+gen_minCtors :: (MinCtorsTrim t, MinCtorsWorker t (DTs t)) => Proxy t -> MinCtorsT t
+gen_minCtors p = minCtorsTrim p $ method p (pDTs p)
+
+
+
 class MinCtorsWorker t dpos where method :: Proxy t -> Proxy dpos -> Minima2
 
 pSiblingDTs :: Proxy t -> Proxy (SiblingDTs t)
 pSiblingDTs _ = Proxy
 
-instance MinInfoNonRec (DCs t) => MinCtorsWorker t NonRecDT where method pt _ = minInfoNonRec (pDisband pt)
+instance MinInfoNonRec (DCs t) => MinCtorsWorker t NonRecDT where method pt _ = cleanUp $ minInfoNonRec (pDisband pt)
 
 pIndex :: Proxy (RecDT l r) -> Proxy (Length l)
 pIndex _ = Proxy
