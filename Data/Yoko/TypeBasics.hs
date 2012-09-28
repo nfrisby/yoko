@@ -18,6 +18,7 @@ Some type-level programming basics.
 
 module Data.Yoko.TypeBasics (
   Proxy(..), Equal, derive_data, derive_pro,
+  Trivial, Id(..),
   Nat(..), SingNat(..),
   Length, Length', Append,
   App, Constant(..),
@@ -50,7 +51,6 @@ data Proxy a = Proxy
 
 
 
--- | Convenient synonym. @type Equal a b = 'IsEQ' ('SpineCompare' a b)@
 type Equal a b = IsEQ (SpineCompare a b)
 
 
@@ -65,6 +65,19 @@ derive_data n = do
 derive_pro n = do
   d <- spineType_pro n
   (d ++) `fmap` serializeTypeAsHash_pro n
+
+
+
+
+
+class Trivial (a :: k); instance Trivial a
+
+
+
+newtype Id a = Id {runId :: a}
+instance Functor Id where fmap f (Id x) = Id $ f x
+instance I.Applicative Id where pure = Id; Id f <*> Id a = Id $ f a
+instance Monad Id where return = Id; Id a >>= k = k a
 
 
 
