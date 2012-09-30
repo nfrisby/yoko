@@ -47,15 +47,11 @@ type family Tag (dc :: k) :: Digit
 -- which case it just uses the left-most.
 type family Codomain (dc :: k) :: k
 
-type family Codomain0 (dcs :: * -> * -> *) :: *
-type family Codomain1 (dcs :: * -> * -> *) :: * -> *
-type family Codomain2 (dcs :: * -> * -> *) :: * -> * -> *
-type instance Codomain0 (N dc)    = Codomain dc
-type instance Codomain1 (N dc)    = Codomain dc
-type instance Codomain2 (N dc)    = Codomain dc
-type instance Codomain0 (l :+: r) = Codomain0 l
-type instance Codomain1 (l :+: r) = Codomain1 l
-type instance Codomain2 (l :+: r) = Codomain2 l
+type family Codomains (dcs :: * -> * -> *) :: k
+type instance Codomains (N (dc :: *)          ) = Codomain dc
+type instance Codomains (N (dc :: * -> *)     ) = Codomain dc
+type instance Codomains (N (dc :: * -> * -> *)) = Codomain dc
+type instance Codomains (l :+: r) = Codomains l
 
 
 

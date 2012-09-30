@@ -82,7 +82,7 @@ newtype Par0 (p1 :: *) (p0 :: *) = Par0 p0
 
 
 
-newtype T0 (v :: Variety) t                      (p1 :: *) (p0 :: *) = T0  t
+newtype T0 (v :: Variety)  t                     (p1 :: *) (p0 :: *) = T0  t
 newtype T1 (v :: Variety) (t :: * -> *)        a (p1 :: *) (p0 :: *) = T1 (t           (a p1 p0))
 newtype T2 (v :: Variety) (t :: * -> * -> *) b a (p1 :: *) (p0 :: *) = T2 (t (b p1 p0) (a p1 p0))
 

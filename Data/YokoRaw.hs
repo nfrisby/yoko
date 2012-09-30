@@ -49,7 +49,7 @@ one = foldN . foldW0
 infixl 6 |||
 -- | Combines two functions that consume disbanded data types into a function
 -- that consumes their union. All fields types must be from the same data type.
-(|||) :: (Codomain0 sumL ~ Codomain0 sumR) => (sumL p1 p0 -> a) -> (sumR p1 p0 -> a) -> (sumL :+: sumR) p1 p0 -> a
+(|||) :: (Codomains sumL ~ (Codomains sumR :: *)) => (sumL p1 p0 -> a) -> (sumR p1 p0 -> a) -> (sumL :+: sumR) p1 p0 -> a
 (|||) = foldPlus
 
 infixl 9 .|.
@@ -82,7 +82,7 @@ band :: (AreDCsOf t (DCs t)) => DCs t p1 p0 -> W t p1 p0
 band = band_
 
 
-embed :: (Codomain0 sub ~ Codomain0 sup, Embed sub sup) => sub p1 p0 -> sup p1 p0
+embed :: (Codomains sub ~ (Codomains sup :: *), Embed sub sup) => sub p1 p0 -> sup p1 p0
 embed = TypeSums.embed
 
 
@@ -92,13 +92,13 @@ inject = TypeSums.inject0
 
 -- | @partition@s a sum of fields type into a specified sum of fields types and
 -- the remaining sum.
-partition :: (Codomain0 sum ~ Codomain0 sub, Partition sum sub (sum :-: sub)) =>
+partition :: (Codomains sum ~ (Codomains sub :: *), Partition sum sub (sum :-: sub)) =>
              sum p1 p0 -> Either (sub p1 p0) ((sum :-: sub) p1 p0)
 partition = TypeSums.partition
 
 -- | @project@s a single fields type out of a disbanded data type.
-project :: (Codomain0 sum ~ Codomain dc, Partition sum (N dc) (sum :-: N dc)) =>
-           sum p1 p0 -> Either dc ((sum :-: N dc) p1 p0)
+project :: (Codomains sum ~ Codomain dc, Partition sum (N dc) (sum :-: N dc)) =>
+           sum p1 p0 -> Either (dc :: *) ((sum :-: N dc) p1 p0)
 project = TypeSums.project0
 
 
@@ -132,7 +132,7 @@ instance (EachGeneric a, EachGeneric b) => EachGeneric (a :+: b) where repEach =
 --
 -- In this example, @C0_@, @C1_@, and @C2_@ are fields types. The other fields
 -- types for the same data type are handled with the @default@ function.
-precise_case0 :: (Codomain0 dcs ~ t, Codomain0 (DCs t) ~ t, DT t,
+precise_case0 :: (Codomains dcs ~ t, Codomains (DCs t) ~ t, DT t,
                  Partition (DCs t) dcs (DCs t :-: dcs)) =>
   ((DCs t :-: dcs) p1 p0 -> a) -> t -> (dcs p1 p0 -> a) -> a
 precise_case0 g x f = either f g $ partition $ disband $ W0 x

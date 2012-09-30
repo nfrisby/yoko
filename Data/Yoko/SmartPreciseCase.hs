@@ -53,12 +53,12 @@ instance (dt ~ Codomain dc,
   Builder (Start dt) ((dc -> r) -> bldr) where
   precise_case_ (Start dt) f = precise_case_ $ AdHoc dt $ one f
 
-instance (dt ~ Codomain dc, dt ~ Codomain0 dcs, r ~ r', -- False ~ Elem dc dcs,
+instance (dt ~ Codomain dc, dt ~ Codomains dcs, r ~ r', -- False ~ Elem dc dcs,
           Builder (AdHoc (dcs :+: N dc) dt r) bldr) =>
   Builder (AdHoc dcs dt r) ((dc -> r') -> bldr) where
   precise_case_ (AdHoc dt adhoc) f = precise_case_ $ AdHoc dt $ adhoc ||. f
 
-instance (DT dt, dt ~ Codomain0 dcs, dt ~ Codomain0 (DCs dt),
+instance (DT dt, dt ~ Codomains dcs, dt ~ Codomains (DCs dt),
           Partition (DCs dt) dcs (DCs dt :-: dcs),
           x ~ (DCs dt :-: dcs),
           final ~ r, final' ~ r) =>
