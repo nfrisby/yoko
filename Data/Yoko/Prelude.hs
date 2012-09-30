@@ -41,7 +41,7 @@ type instance Codomain Cons_ = []
 type instance Codomain (Nil_ a)  = [a]
 type instance Codomain (Cons_ a) = [a]
 
-type instance Rep (Nil_ a)  = Subst0 Nil_ a
+type instance Rep (Nil_ a)  = C (Nil_ a) U
 instance Generic (Nil_ a) where
   rep = foldW0   $ \_ -> C U
   obj = unfoldW0 $ \_ -> Nil_
@@ -56,7 +56,7 @@ instance Generic Nil_ where
 
 instance DC Nil_ where rejoin = mapW1 $ \_ -> []
 
-type instance Rep (Cons_ a) = Subst0 Cons_ a
+type instance Rep (Cons_ a) = C (Cons_ a) (T0 Dep a :*: T0 (Rec 'Z) [a])
 instance Generic (Cons_ a) where
   rep = foldW0   $ \(Cons_ a as)         -> C (T0 a :*: T0 as)
   obj = unfoldW0 $ \(C (T0 a :*: T0 as)) -> Cons_ a as

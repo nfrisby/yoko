@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies, TypeOperators, FlexibleContexts,
   MultiParamTypeClasses, FlexibleInstances, UndecidableInstances, DataKinds,
-  PolyKinds, GADTs #-}
+  PolyKinds, GADTs, EmptyDataDecls #-}
 
 {- |
 
@@ -85,53 +85,10 @@ class DT t where disband :: W t p1 p0 -> DCs t p1 p0
 
 
 
--- take a representation, C or above and excluding Recs/Pars, to an actual *
--- type
-type family Eval (r :: * -> * -> *) :: *
-type instance Eval (T0 Dep t)       = t
---type instance Eval Void           = ???
-type instance Eval (l :+: r)        = Eval l -- equivalently, Eval r
-type instance Eval (C  (dc :: *) r) = Codomain dc
-type instance Eval (N dc)           = Codomain dc
 
 
-
-data SubstSpec star = Sub0 star | Sub1 star | Sub10 star star
-
-
-
-type family Subst (spec :: SubstSpec *) (r :: * -> * -> *) :: * -> * -> *
---type instance Subst spec Void  = ???
-type instance Subst spec (N dc)   = N dc
-type instance Subst spec (l :+: r) = Subst spec l :+: Subst spec r
-
-type instance Subst spec (C dc r) = C dc (Subst spec r)
-type instance Subst spec U         = U
-type instance Subst spec (l :*: r) = Subst spec l :*: Subst spec r
-
-type instance Subst (Sub0  par0     ) Par0 = T0 Dep par0
-type instance Subst (Sub1  par1     ) Par0 = Par0
-type instance Subst (Sub10 par1 par0) Par0 = T0 Dep par0
-type instance Subst (Sub1  par1     ) Par1 = T0 Dep par1
-type instance Subst (Sub10 par1 par0) Par1 = T0 Dep par1
-
-type instance Subst (Sub0 par0) (T1 (Rec lbl) t a) = T0 (Rec lbl) (t (Eval (Subst (Sub0 par0) a)))
---type instance Subst (Sub1 par1) (Rec0 lbl t) = undefined
---type instance Subst (Sub10 par1 par0) (Rec1 lbl t a) = undefined
-
---type instance Subst (Sub0 par0 (Rec2 lbl t b a) = undefined
-type instance Subst (Sub1 par1) (T2 (Rec lbl) t b a) =
-  T1 (Rec lbl)    (t (Eval (Subst (Sub1 par1) b)))    (Subst (Sub1 par1) a)
-type instance Subst (Sub10 par1 par0) (T2 (Rec lbl) t b a) =
-  T0 (Rec lbl)    (t (Eval (Subst (Sub10 par1 par0) b))    (Eval (Subst (Sub10 par1 par0) a)))
-
-type instance Subst spec (T0 Dep t)  = T0 Dep t
-
-type instance Subst spec (T1 Dep f x  ) = T1 Dep f (Subst spec x)
-type instance Subst spec (T2 Dep f x y) = T2 Dep f (Subst spec x) (Subst spec y)
-
-
-
-type Subst0  t    p0 = Subst (Sub0 p0)     (Rep t)
-type Subst1  t p1    = Subst (Sub1 p1)     (Rep t)
-type Subst10 t p1 p0 = Subst (Sub10 p1 p0) (Rep t)
+-- | Maps a field representation to the represented type.
+type family EvalT (r :: * -> * -> *) (p1 :: *) (p0 :: *) :: *
+type instance EvalT (T0 v t)     p1 p0 = t
+type instance EvalT (T1 v t a)   p1 p0 = t (EvalT a p1 p0)
+type instance EvalT (T2 v t b a) p1 p0 = t (EvalT b p1 p0) (EvalT a p1 p0)

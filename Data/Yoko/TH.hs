@@ -288,11 +288,6 @@ fieldRO maps bg parNs = w' where
   isPar n = n `elem` parNs
   isImportant n = isRec n || isPar n
 
-  (nRecTy, nRecCtor) = case length parNs of
-    0 -> (''T0, 'T0)
-    1 -> (''T1, 'T1)
-    2 -> (''T2, 'T2)
-
   w ty tys = case ty of
     PromotedT{}      -> Int.thFail $ "no support for promoted types."
     PromotedTupleT{} -> Int.thFail $ "no support for promoted types."
@@ -319,29 +314,21 @@ fieldRO maps bg parNs = w' where
       Nothing -> expandSyn ty tys >>= \case
         Just (ty, tys) -> w ty tys
         Nothing -> Int.thFail "impossible: expandSyn is guarded by yoko0."
-      Just lbl -> appliedRec lbl container tys'
-        where (foldl AppT ty -> container, tys') =
-                List.splitAt (length tys - length parNs) tys
+      Just lbl -> appliedType0 (PromotedT 'Rec `AppT` toNat lbl) container importants
 
     -- NB cannot be recursive ... TODO unless we're operating on []
-    _ -> appliedDep container importants
-      where (foldl AppT ty -> container, importants) =
-              List.break (any isImportant . Set.toList . namesIn) tys
+    _ -> appliedType0 (PromotedT 'Dep) container importants
+    where (foldl AppT ty -> container, importants) =
+            List.break (any isImportant . Set.toList . namesIn) tys
 
-  appliedRec lbl container tys = case null tys of
-    True -> return (ConT ''T0 `AppT` (PromotedT 'Rec `AppT` toNat lbl) `AppT` container, FieldRO (ConE 'T0) (VarE 'unT0))
-    False -> case lookup (length tys) maps of
-      Nothing -> Int.thFail $ "no case in the given YokoOptions for type constructors with " ++ show (length tys) ++ " arguments."
-      Just (Mapping {methodName = mn}) -> appliedType (ConT nRecTy `AppT` (PromotedT 'Rec `AppT` toNat lbl), nRecCtor, mn) container tys
-
-  appliedDep container tys = case null tys of
-    True -> return (ConT ''T0 `AppT` PromotedT 'Dep `AppT` container, FieldRO (ConE 'T0) (VarE 'unT0))
+  appliedType0 v ty tys = case null tys of
+    True -> return (ConT ''T0 `AppT` v `AppT` ty, FieldRO (ConE 'T0) (VarE 'unT0))
     False -> case lookup (length tys) maps of
       Nothing -> Int.thFail $ "no case in the given YokoOptions for type constructors with " ++ show (length tys) ++ " arguments."
       Just (Mapping {containerTypeName = tyn, containerCtor = ctor, methodName = mn}) ->
-        appliedType (ConT tyn `AppT` PromotedT 'Dep, ctor, mn) container tys
+        appliedType (ConT tyn `AppT` v)  ctor mn ty tys
 
-  appliedType (rTy, nCtor, nMap) ty tys = do
+  appliedType rTy nCtor nMap ty tys = do
     tys <- mapM w' tys
     let snoc (tyL, fROL) (tyR, fROR) = (tyL `AppT` tyR, fROL `appRO` fROR)
         appRO l r = FieldRO {repF = repF l `AppE` repF r `AppE` objF r,
