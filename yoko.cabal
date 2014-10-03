@@ -1,5 +1,5 @@
 name: yoko
-version: 0.9
+version: 0.9.1
 synopsis: Generic Programming with Disbanded Data Types
 
 description:
@@ -93,7 +93,7 @@ source-repository head
 
 
 library
-  build-depends: base >= 4 && < 5, template-haskell, containers, mtl
+  build-depends: base >= 4 && < 4.7, template-haskell, containers, mtl
 
   build-depends: th-sccs, invariant
 
@@ -102,8 +102,8 @@ library
   build-depends: kinds >= 0.0.1.5, type-functions >= 0.2.0.3, records >= 0.1.1.6
 
   build-depends:
-    type-spine >= 0.2, type-digits >= 0.2, type-cereal >= 0.2, type-ord >= 0.2, type-ord-spine-cereal >= 0.2
-
+    type-spine >= 0.2, type-digits >= 0.2, type-cereal >= 0.2, type-ord >= 0.2, type-ord-spine-cereal >= 0.2,
+    semigroups < 0.13
   exposed-modules:
     Data.Yoko,
 
